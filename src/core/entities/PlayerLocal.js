@@ -130,6 +130,7 @@ export class PlayerLocal extends Entity {
     this.base.activate({ world: this.world, entity: this })
 
     this.camHeight = DEFAULT_CAM_HEIGHT
+    this.zoomEnabled = true
 
     this.applyAvatar()
 
@@ -671,7 +672,7 @@ export class PlayerLocal extends Entity {
     }
 
     // zoom camera if scrolling wheel
-    if (!isXR) {
+    if (!isXR && this.zoomEnabled) {
       this.cam.zoom += -this.control.scrollDelta.value * ZOOM_SPEED * delta
       this.cam.zoom = clamp(this.cam.zoom, MIN_ZOOM, MAX_ZOOM)
     }
@@ -912,6 +913,10 @@ export class PlayerLocal extends Entity {
     const newZoom = clamp(zoomValue, MIN_ZOOM, MAX_ZOOM)
     this.cam.zoom = newZoom
     this.control.camera.zoom = newZoom
+  }
+
+  setZoomEnabled(enabled) {
+    this.zoomEnabled = enabled
   }
 
   setEffect(effect, onEnd) {

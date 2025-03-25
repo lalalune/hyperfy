@@ -157,5 +157,10 @@ export function createPlayerProxy(player) {
         player.setZoom(zoomValue)
       }
     },
+    setZoomEnabled(enabled) {
+      if (player.data.owner === world.network.id) {
+        player.setZoomEnabled(enabled)
+      }
+    },
   }
 }
