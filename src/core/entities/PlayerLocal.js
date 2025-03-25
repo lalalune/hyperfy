@@ -18,7 +18,7 @@ const SCALE_IDENTITY = new THREE.Vector3(1, 1, 1)
 const POINTER_LOOK_SPEED = 0.1
 const PAN_LOOK_SPEED = 0.4
 const ZOOM_SPEED = 2
-const MIN_ZOOM = 2
+const MIN_ZOOM = 0.5
 const MAX_ZOOM = 100 // 16
 const STICK_MAX_DISTANCE = 50
 const DEFAULT_CAM_HEIGHT = 1.2
@@ -906,6 +906,12 @@ export class PlayerLocal extends Entity {
     if (hasRotation) this.cam.rotation.y = rotationY
     this.control.camera.position.copy(this.cam.position)
     this.control.camera.quaternion.copy(this.cam.quaternion)
+  }
+
+  setZoom(zoomValue) {
+    const newZoom = clamp(zoomValue, MIN_ZOOM, MAX_ZOOM)
+    this.cam.zoom = newZoom
+    this.control.camera.zoom = newZoom
   }
 
   setEffect(effect, onEnd) {

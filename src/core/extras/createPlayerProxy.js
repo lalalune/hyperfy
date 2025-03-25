@@ -152,5 +152,10 @@ export function createPlayerProxy(player) {
         world.network.sendTo(player.data.owner, 'playerPush', { force })
       }
     },
+    setZoom(zoomValue) {
+      if (player.data.owner === world.network.id) {
+        player.setZoom(zoomValue)
+      }
+    },
   }
 }
