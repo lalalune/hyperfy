@@ -281,6 +281,11 @@ export class ServerNetwork extends System {
           health: HEALTH_MAX,
           avatar: user.avatar || this.world.settings.avatar?.url || 'asset://avatar.vrm',
           roles: user.roles,
+          wallet: {
+            connecting: false,
+            connected: false,
+            address: null,
+          },
         },
         true
       )
@@ -511,6 +516,14 @@ export class ServerNetwork extends System {
 
   onPing = (socket, time) => {
     socket.send('pong', time)
+  }
+
+  onDepositResponse = (socket, data) => {
+    this.world.solana.onDepositResponse(data)
+  }
+
+  onWithdrawResponse = (socket, data) => {
+    this.world.solana.onWithdrawResponse(data)
   }
 
   onDisconnect = (socket, code) => {

@@ -28,6 +28,7 @@ import {
   SettingsIcon,
   VRIcon,
 } from './Icons'
+import { Wallet } from './Wallet'
 
 export function CoreUI({ world }) {
   const [ref, width, height] = useElemSize()
@@ -128,6 +129,7 @@ function Content({ world, width, height }) {
       {!ready && <LoadingOverlay />}
       {kicked && <KickedOverlay code={kicked} />}
       {ready && isTouch && <TouchBtns world={world} />}
+      {ready && <Wallet world={world} />}
     </div>
   )
 }
