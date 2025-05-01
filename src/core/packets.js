@@ -55,10 +55,11 @@ export function readPacket(packet) {
   try {
     const [id, data] = packr.unpack(packet)
     const info = byId[id]
-    if (!info) throw new Error(`readPacket failed: ${id} (id not found)`)
+    if (!info) {
+        return []
+    }
     return [info.method, data]
   } catch (err) {
-    console.error(err)
     return []
   }
 }

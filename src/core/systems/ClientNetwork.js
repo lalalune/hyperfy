@@ -24,12 +24,15 @@ export class ClientNetwork extends System {
     this.queue = []
   }
 
-  init({ wsUrl }) {
-    const authToken = storage.get('authToken')
-    this.ws = new WebSocket(`${wsUrl}?authToken=${authToken}`)
-    this.ws.binaryType = 'arraybuffer'
-    this.ws.addEventListener('message', this.onPacket)
-    this.ws.addEventListener('close', this.onClose)
+  init({ wsUrl, initialAuthToken }) {
+    const authToken = initialAuthToken;
+    const connectionUrl = (authToken && typeof authToken === 'string') 
+                          ? `${wsUrl}?authToken=${encodeURIComponent(authToken)}`
+                          : wsUrl;
+    this.ws = new WebSocket(connectionUrl);
+    this.ws.binaryType = 'arraybuffer';
+    this.ws.addEventListener('message', this.onPacket);
+    this.ws.addEventListener('close', this.onClose);
   }
 
   preFixedUpdate() {
@@ -37,23 +40,20 @@ export class ClientNetwork extends System {
   }
 
   send(name, data) {
-    // console.log('->', name, data)
     const packet = writePacket(name, data)
     this.ws.send(packet)
   }
 
   async upload(file) {
     {
-      // first check if we even need to upload it
       const hash = await hashFile(file)
       const ext = file.name.split('.').pop().toLowerCase()
       const filename = `${hash}.${ext}`
       const url = `${this.apiUrl}/upload-check?filename=${filename}`
       const resp = await fetch(url)
       const data = await resp.json()
-      if (data.exists) return // console.log('already uploaded:', filename)
+      if (data.exists) return
     }
-    // then upload it
     const form = new FormData()
     form.append('file', file)
     const url = `${this.apiUrl}/upload`
@@ -73,72 +73,45 @@ export class ClientNetwork extends System {
         const [method, data] = this.queue.shift()
         this[method]?.(data)
       } catch (err) {
-        console.error(err)
       }
     }
   }
 
   getTime() {
-    return (performance.now() + this.serverTimeOffset) / 1000 // seconds
+    return (performance.now() + this.serverTimeOffset) / 1000
   }
 
   onPacket = e => {
-    const [method, data] = readPacket(e.data)
-    this.enqueue(method, data)
-    // console.log('<-', method, data)
+    const [method, data] = readPacket(e.data);
+    if (method) { 
+    } else {
+    }
+    this.enqueue(method, data);
   }
 
   onSnapshot(data) {
-    this.id = data.id
-    this.serverTimeOffset = data.serverTime - performance.now()
-    this.apiUrl = data.apiUrl
-    this.maxUploadSize = data.maxUploadSize
-    this.world.assetsUrl = data.assetsUrl
+    this.id = data.id;
+    this.serverTimeOffset = data.serverTime - performance.now();
+    this.apiUrl = data.apiUrl;
+    this.maxUploadSize = data.maxUploadSize;
+    this.world.assetsUrl = data.assetsUrl;
 
-    // preload environment model and avatar
-    if (data.settings.model) {
-      this.world.loader.preload('model', data.settings.model.url)
+    this.world.settings?.deserialize(data.settings);
+    this.world.chat?.deserialize(data.chat);
+    this.world.blueprints?.deserialize(data.blueprints);
+    this.world.entities?.deserialize(data.entities);
+    this.world.livekit?.deserialize(data.livekit);
+    
+    try {
+        storage.set('authToken', data.authToken); 
+    } catch (e) {
+    }
+
+    if (this.world.loader) {
+        this.world.loader.execPreload(); 
     } else {
-      this.world.loader.preload('model', this.world.environment.base.model)
+        this.world.emit('ready', true);
     }
-    if (data.settings.avatar) {
-      this.world.loader.preload('avatar', data.settings.avatar.url)
-    }
-    // preload some blueprints
-    for (const item of data.blueprints) {
-      if (item.preload) {
-        if (item.model) {
-          const type = item.model.endsWith('.vrm') ? 'avatar' : 'model'
-          this.world.loader.preload(type, item.model)
-        }
-        if (item.script) {
-          this.world.loader.preload('script', item.script)
-        }
-        for (const value of Object.values(item.props || {})) {
-          if (value === undefined || value === null || !value?.url || !value?.type) continue
-          this.world.loader.preload(value.type, value.url)
-        }
-      }
-    }
-    // preload emotes
-    for (const url of emoteUrls) {
-      this.world.loader.preload('emote', url)
-    }
-    // preload local player avatar
-    for (const item of data.entities) {
-      if (item.type === 'player' && item.owner === this.id) {
-        const url = item.sessionAvatar || item.avatar
-        this.world.loader.preload('avatar', url)
-      }
-    }
-    this.world.loader.execPreload()
-
-    this.world.settings.deserialize(data.settings)
-    this.world.chat.deserialize(data.chat)
-    this.world.blueprints.deserialize(data.blueprints)
-    this.world.entities.deserialize(data.entities)
-    this.world.livekit.deserialize(data.livekit)
-    storage.set('authToken', data.authToken)
   }
 
   onSettingsModified = data => {
@@ -210,6 +183,5 @@ export class ClientNetwork extends System {
       createdAt: moment().toISOString(),
     })
     this.world.emit('disconnect', code || true)
-    console.log('disconnect', code)
   }
 }

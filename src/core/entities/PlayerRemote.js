@@ -4,6 +4,8 @@ import { createNode } from '../extras/createNode'
 import { LerpQuaternion } from '../extras/LerpQuaternion'
 import { LerpVector3 } from '../extras/LerpVector3'
 
+const DEFAULT_CAM_HEIGHT = 1.2
+
 let capsuleGeometry
 {
   const radius = 0.3
@@ -84,20 +86,34 @@ export class PlayerRemote extends Entity {
     this.world.setHot(this, true)
   }
 
+  getAvatarUrl() {
+    return this.data.sessionAvatar || this.data.avatar || 'asset://avatar.vrm'
+  }
+
   applyAvatar() {
-    const avatarUrl = this.data.sessionAvatar || this.data.avatar || 'asset://avatar.vrm'
+    if (!this.world.loader) {
+      this.avatarUrl = this.getAvatarUrl()
+      this.nametag?.position.setY(DEFAULT_CAM_HEIGHT + 0.2)
+      return
+    }
+
+    const avatarUrl = this.getAvatarUrl()
     if (this.avatarUrl === avatarUrl) return
-    this.world.loader.load('avatar', avatarUrl).then(src => {
-      if (this.avatar) this.avatar.deactivate()
-      this.avatar = src.toNodes().get('avatar')
-      this.base.add(this.avatar)
-      this.nametag.position.y = this.avatar.getHeadToHeight() + 0.2
-      this.bubble.position.y = this.avatar.getHeadToHeight() + 0.2
-      if (!this.bubble.active) {
-        this.nametag.active = true
-      }
-      this.avatarUrl = avatarUrl
-    })
+
+    this.world.loader
+      .load('avatar', avatarUrl)
+      .then(src => {
+        if (this.avatar) this.avatar.deactivate()
+        this.avatar = src.toNodes().get('avatar')
+        this.base.add(this.avatar)
+        this.nametag.position.y = this.avatar.getHeadToHeight() + 0.2
+        this.avatarUrl = avatarUrl
+      })
+      .catch(err => {
+        console.error(`[PlayerRemote (${this.data.id})] Failed to load avatar ${avatarUrl}:`, err)
+        this.avatarUrl = avatarUrl
+        this.nametag?.position.setY(DEFAULT_CAM_HEIGHT + 0.2)
+      })
   }
 
   getAnchorMatrix() {
