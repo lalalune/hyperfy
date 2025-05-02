@@ -159,45 +159,6 @@ export class ClientNetwork extends System {
         // Manually emit ready for agent if no loader (restoring previous agent fix)
         this.world.emit('ready', true);
     }
-    if (data.settings.avatar) {
-      this.world.loader.preload('avatar', data.settings.avatar.url)
-    }
-    // preload some blueprints
-    for (const item of data.blueprints) {
-      if (item.preload) {
-        if (item.model) {
-          const type = item.model.endsWith('.vrm') ? 'avatar' : 'model'
-          this.world.loader?.preload(type, item.model)
-        }
-        if (item.script) {
-          this.world.loader?.preload('script', item.script)
-        }
-        for (const value of Object.values(item.props || {})) {
-          if (value === undefined || value === null || !value?.url || !value?.type) continue
-          this.world.loader?.preload(value.type, value.url)
-        }
-      }
-    }
-    // preload emotes
-    for (const url of emoteUrls) {
-      this.world.loader?.preload('emote', url)
-    }
-    // preload local player avatar
-    for (const item of data.entities) {
-      if (item.type === 'player' && item.owner === this.id) {
-        const url = item.sessionAvatar || item.avatar
-        this.world.loader?.preload('avatar', url)
-      }
-    }
-    this.world.loader?.execPreload()
-
-    this.world.collections?.deserialize(data.collections)
-    this.world.settings?.deserialize(data.settings)
-    this.world.chat?.deserialize(data.chat)
-    this.world.blueprints?.deserialize(data.blueprints)
-    this.world.entities?.deserialize(data.entities)
-    this.world.livekit?.deserialize(data.livekit)
-    storage.set('authToken', data.authToken)
   }
 
   onSettingsModified = data => {
