@@ -1,42 +1,34 @@
-import fs from 'fs/promises';      // <-- Static import
-import path from 'path';        // <-- Static import
-import { fileURLToPath } from 'url'; // <-- Static import
-
-const isBrowser = typeof window !== 'undefined';
+const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 class LocalStorage {
   get(key, defaultValue = null) {
+    const data = localStorage.getItem(key)
+    if (data === undefined) return defaultValue
+    let value
     try {
-      const data = localStorage.getItem(key);
-      // localStorage returns null if key doesn't exist
-      if (data === null) return defaultValue;
-      const value = JSON.parse(data);
-      return value ?? defaultValue; // Use nullish coalescing
+      value = JSON.parse(data)
     } catch (err) {
-      console.error('Error reading localStorage key:', key, err);
-      return defaultValue;
+      console.error('error reading storage key:', key)
+      value = null
     }
+    if (value === undefined) return defaultValue
+    return value || defaultValue
   }
 
   set(key, value) {
-    try {
-      if (value === undefined || value === null) {
-        localStorage.removeItem(key);
-      } else {
-        const data = JSON.stringify(value);
-        localStorage.setItem(key, data);
-      }
-    } catch (err) {
-      console.error('Error writing localStorage key:', key, err);
+    if (value === undefined || value === null) {
+      localStorage.removeItem(key)
+    } else {
+      const data = JSON.stringify(value)
+      localStorage.setItem(key, data)
     }
   }
 
   remove(key) {
-    try {
-      localStorage.removeItem(key);
-    } catch (err) {
-      console.error('Error removing localStorage key:', key, err);
-    }
+    localStorage.removeItem(key)
   }
 }
 
@@ -138,12 +130,6 @@ class NodeStorage {
   }
 }
 
-// No longer throw error here
-// if (!isBrowser) throw new Error('storage not available on the server')
-
-// TODO: use a MemoryStorage fallback for browser environments that do not allow LocalStorage, eg safari private
-
-// Use a top-level await IIFE for async export logic
 let storageInstance;
 if (isBrowser) {
   storageInstance = new LocalStorage();
@@ -153,4 +139,3 @@ if (isBrowser) {
 }
 
 export const storage = storageInstance;
-export { isBrowser };
