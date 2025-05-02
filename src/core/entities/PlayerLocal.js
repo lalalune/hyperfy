@@ -895,7 +895,7 @@ export class PlayerLocal extends Entity {
       // in vr snap camera
       this.control.camera.position.copy(this.cam.position)
       this.control.camera.quaternion.copy(this.cam.quaternion)
-    } else {
+    } else if (this.cam && this.control.camera) {
       // otherwise interpolate camera towards target
       simpleCamLerp(this.world, this.control.camera, this.cam, delta)
     }
