@@ -83,10 +83,10 @@ const clientHtmlDest = path.join(rootDir, 'build/public/index.html')
 }
 
 /**
- * Build Agent Core
+ * Build Core
  */
 {
-  const agentCoreCtx = await esbuild.context({
+  const coreCtx = await esbuild.context({
     entryPoints: ['src/core/exports.js'],
     outfile: 'build/core.js',
     platform: 'node',
@@ -109,10 +109,9 @@ const clientHtmlDest = path.join(rootDir, 'build/public/index.html')
   });
 
   if (dev) {
-    await agentCoreCtx.watch();
-    // Optional: Add logic here if watching the core should trigger agent restart
+    await coreCtx.watch();
   } else {
-    await agentCoreCtx.rebuild();
+    await coreCtx.rebuild();
   }
 }
 
