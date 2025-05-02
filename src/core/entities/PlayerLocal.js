@@ -160,18 +160,9 @@ export class PlayerLocal extends Entity {
   }
 
   applyAvatar() {
-    if (!this.world.loader) {
-      console.log("[PlayerLocal.applyAvatar] Skipping avatar load in agent environment.");
-      this.avatarUrl = this.getAvatarUrl();
-      this.camHeight = DEFAULT_CAM_HEIGHT;
-      this.nametag?.position.setY(DEFAULT_CAM_HEIGHT + 0.2);
-      this.bubble?.position.setY(DEFAULT_CAM_HEIGHT + 0.2);
-      return;
-    }
-    
+    if (!this.world.loader) return
     const avatarUrl = this.getAvatarUrl()
     if (this.avatarUrl === avatarUrl) return
-    
     this.world.loader
       .load('avatar', avatarUrl)
       .then(src => {
@@ -187,11 +178,7 @@ export class PlayerLocal extends Entity {
         this.camHeight = this.avatar.height * 0.95
       })
       .catch(err => {
-        console.error(`[PlayerLocal.applyAvatar] Failed to load avatar ${avatarUrl}:`, err)
-        this.avatarUrl = avatarUrl
-        this.camHeight = DEFAULT_CAM_HEIGHT
-        this.nametag?.position.setY(DEFAULT_CAM_HEIGHT + 0.2)
-        this.bubble?.position.setY(DEFAULT_CAM_HEIGHT + 0.2)
+        console.error(err)
       })
   }
 
@@ -269,45 +256,34 @@ export class PlayerLocal extends Entity {
   }
 
   initControl() {
-    // Check if we have the ClientControls bind method or the AgentControls direct object
-    if (typeof this.world.controls?.bind === 'function') {
-        // Client Environment: Call bind to get the correct interface
-        // console.log("[PlayerLocal.initControl] Using controls.bind() for Client environment.");
-        this.control = this.world.controls.bind({ 
-            priority: ControlPriorities.PLAYER,
-            // Add back touch handlers if they were needed for client
-            onTouch: touch => {
-              if (!this.stick && this.control?.screen && touch.position.x < this.control.screen.width / 2) {
-                this.stick = {
-                  center: touch.position.clone(),
-                  touch,
-                }
-              } else if (!this.pan) {
-                this.pan = touch
-              }
-            },
-            onTouchEnd: touch => {
-              if (this.stick?.touch === touch) {
-                this.stick = null
-              }
-              if (this.pan === touch) {
-                this.pan = null
-              }
-            },
-        });
-    } else {
-        // Agent Environment: Directly assign the proxied AgentControls instance
-        // console.log("[PlayerLocal.initControl] Assigning world.controls directly for Agent environment.");
-        this.control = this.world.controls; 
-    }
-    
-    // Ensure camera write still happens if needed (check if control and camera exist)
-    if (this.control?.camera) { 
-        this.control.camera.write = true;
-        this.control.camera.position.copy(this.cam.position);
-        this.control.camera.quaternion.copy(this.cam.quaternion);
-        this.control.camera.zoom = this.cam.zoom;
-    }
+    this.control = this.world.controls.bind({
+      priority: ControlPriorities.PLAYER,
+      onTouch: touch => {
+        if (!this.stick && touch.position.x < this.control.screen.width / 2) {
+          this.stick = {
+            center: touch.position.clone(),
+            touch,
+          }
+        } else if (!this.pan) {
+          this.pan = touch
+        }
+      },
+      onTouchEnd: touch => {
+        if (this.stick?.touch === touch) {
+          this.stick = null
+        }
+        if (this.pan === touch) {
+          this.pan = null
+        }
+      },
+    })
+    if (!this.control.camera) return
+    this.control.camera.write = true
+    this.control.camera.position.copy(this.cam.position)
+    this.control.camera.quaternion.copy(this.cam.quaternion)
+    this.control.camera.zoom = this.cam.zoom
+    // this.control.setActions([{ type: 'space', label: 'Jump / Double-Jump' }])
+    // this.control.setActions([{ type: 'escape', label: 'Menu' }])
   }
 
   toggleFlying() {
@@ -601,21 +577,18 @@ export class PlayerLocal extends Entity {
 
       this.capsule.setLinearVelocity(velocity.toPxVec3())
 
-      // --> Log before applying move force <--
-      console.log(`[PlayerLocal.fixedUpdate] Moving state: ${this.moving}, moveDir: (${this.moveDir.x.toFixed(2)}, ${this.moveDir.z.toFixed(2)})`);
-      
       // apply move force, projected onto ground normal
       if (this.moving) {
         let moveSpeed = (this.running ? 8 : 4) * this.mass // run
         moveSpeed *= 1 - snare
-        const slopeRotation = q1.setFromUnitVectors(UP, this.groundNormal);
-        const moveForce = v1.copy(this.moveDir).multiplyScalar(moveSpeed * 10).applyQuaternion(slopeRotation);
-        // --> Log calculated move force <--
-        console.log(`[PlayerLocal.fixedUpdate] Applying move force: (${moveForce.x.toFixed(2)}, ${moveForce.y.toFixed(2)}, ${moveForce.z.toFixed(2)})`);
-        this.capsule.addForce(moveForce.toPxVec3(), PHYSX.PxForceModeEnum.eFORCE, true);
-      } 
-      else { // --> Log if not applying force <--
-         console.log("[PlayerLocal.fixedUpdate] Not moving, no move force applied.");
+        const slopeRotation = q1.setFromUnitVectors(UP, this.groundNormal)
+        const moveForce = v1.copy(this.moveDir).multiplyScalar(moveSpeed * 10).applyQuaternion(slopeRotation) // prettier-ignore
+        this.capsule.addForce(moveForce.toPxVec3(), PHYSX.PxForceModeEnum.eFORCE, true)
+        // alternative (slightly different projection)
+        // let moveSpeed = 10
+        // const slopeMoveDir = v1.copy(this.moveDir).projectOnPlane(this.groundNormal).normalize()
+        // const moveForce = v2.copy(slopeMoveDir).multiplyScalar(moveSpeed * 10)
+        // this.capsule.addForce(moveForce.toPxVec3(), PHYSX.PxForceModeEnum.eFORCE, true)
       }
 
       // ground/air jump
@@ -691,167 +664,167 @@ export class PlayerLocal extends Entity {
   }
 
   update(delta) {
-    // Use optional chaining for world.xr
-    const isXR = this.world.xr?.session; 
-    const freeze = this.data.effect?.freeze;
-    const anchor = this.getAnchorMatrix();
+    const isXR = this.world.xr?.session
+    const freeze = this.data.effect?.freeze
+    const anchor = this.getAnchorMatrix()
 
     // update cam look direction
     if (isXR) {
       // in xr clear camera rotation (handled internally)
-      this.cam.rotation.set(0, 0, 0);
-    } else if (this.control.pointer?.locked) {
+      this.cam.rotation.set(0, 0, 0)
+    } else if (this.control.pointer.locked) {
       // or pointer lock, rotate camera with pointer movement
-      this.cam.rotation.x += -this.control.pointer.delta.y * POINTER_LOOK_SPEED * delta;
-      this.cam.rotation.y += -this.control.pointer.delta.x * POINTER_LOOK_SPEED * delta;
-      this.cam.rotation.z = 0;
+      this.cam.rotation.x += -this.control.pointer.delta.y * POINTER_LOOK_SPEED * delta
+      this.cam.rotation.y += -this.control.pointer.delta.x * POINTER_LOOK_SPEED * delta
+      this.cam.rotation.z = 0
     } else if (this.pan) {
       // or when touch panning
-      this.cam.rotation.x += -this.pan.delta.y * PAN_LOOK_SPEED * delta;
-      this.cam.rotation.y += -this.pan.delta.x * PAN_LOOK_SPEED * delta;
-      this.cam.rotation.z = 0;
+      this.cam.rotation.x += -this.pan.delta.y * PAN_LOOK_SPEED * delta
+      this.cam.rotation.y += -this.pan.delta.x * PAN_LOOK_SPEED * delta
+      this.cam.rotation.z = 0
     }
 
     // ensure we can't look too far up/down
     if (!isXR) {
-      this.cam.rotation.x = clamp(this.cam.rotation.x, -89 * DEG2RAD, 89 * DEG2RAD);
+      this.cam.rotation.x = clamp(this.cam.rotation.x, -89 * DEG2RAD, 89 * DEG2RAD)
     }
 
     // zoom camera if scrolling wheel
-    if (!isXR) { 
-      // Add optional chaining to scrollDelta as well
-      this.cam.zoom += -(this.control?.scrollDelta?.value ?? 0) * ZOOM_SPEED * delta;
-      this.cam.zoom = clamp(this.cam.zoom, MIN_ZOOM, MAX_ZOOM);
+    if (!isXR) {
+      this.cam.zoom += -this.control.scrollDelta.value * ZOOM_SPEED * delta
+      this.cam.zoom = clamp(this.cam.zoom, MIN_ZOOM, MAX_ZOOM)
     }
 
     // watch jump presses to either fly or air-jump
-    this.jumpDown = isXR ? this.control.xrRightBtn1?.down : this.control.space?.down || this.control.touchA?.down;
-    if (isXR ? this.control.xrRightBtn1?.pressed : this.control.space?.pressed || this.control.touchA?.pressed) {
-      this.jumpPressed = true;
+    this.jumpDown = isXR ? this.control.xrRightBtn1.down : this.control.space.down || this.control.touchA.down
+    if (isXR ? this.control.xrRightBtn1.pressed : this.control.space.pressed || this.control.touchA.pressed) {
+      this.jumpPressed = true
     }
-
-    // --> Log this.control instance <--
-    // console.log("[PlayerLocal.update] this.control is:", this.control);
 
     // get our movement direction
-    this.moveDir.set(0, 0, 0);
-    // --> Log control state read <--
-    const wDown = this.control?.keyW?.down || this.control?.arrowUp?.down;
-    const sDown = this.control?.keyS?.down || this.control?.arrowDown?.down;
-    const aDown = this.control?.keyA?.down || this.control?.arrowLeft?.down;
-    const dDown = this.control?.keyD?.down || this.control?.arrowRight?.down;
-    console.log(`[PlayerLocal.update] Reading controls - W:${wDown}, S:${sDown}, A:${aDown}, D:${dDown}`);
-
+    this.moveDir.set(0, 0, 0)
     if (isXR) {
-       // ... XR logic ...
+      // in xr use controller input
+      this.moveDir.x = this.control.xrLeftStick.value.x
+      this.moveDir.z = this.control.xrLeftStick.value.z
     } else if (this.stick) {
-       // ... stick logic ...
+      // if we have a touch joystick use that
+      const touchX = this.stick.touch.position.x
+      const touchY = this.stick.touch.position.y
+      const centerX = this.stick.center.x
+      const centerY = this.stick.center.y
+      const dx = centerX - touchX
+      const dy = centerY - touchY
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      if (distance > STICK_MAX_DISTANCE) {
+        this.stick.center.x = touchX + (STICK_MAX_DISTANCE * dx) / distance
+        this.stick.center.y = touchY + (STICK_MAX_DISTANCE * dy) / distance
+      }
+      const stickX = (touchX - this.stick.center.x) / STICK_MAX_DISTANCE
+      const stickY = (touchY - this.stick.center.y) / STICK_MAX_DISTANCE
+      this.moveDir.x = stickX
+      this.moveDir.z = stickY
     } else {
       // otherwise use keyboard
-      if (wDown) this.moveDir.z -= 1;
-      if (sDown) this.moveDir.z += 1;
-      if (aDown) this.moveDir.x -= 1;
-      if (dDown) this.moveDir.x += 1;
+      if (this.control.keyW.down || this.control.arrowUp.down) this.moveDir.z -= 1
+      if (this.control.keyS.down || this.control.arrowDown.down) this.moveDir.z += 1
+      if (this.control.keyA.down || this.control.arrowLeft.down) this.moveDir.x -= 1
+      if (this.control.keyD.down || this.control.arrowRight.down) this.moveDir.x += 1
     }
-    
-    // --> Log calculated moveDir and moving state <--
-    this.moving = this.moveDir.length() > 0.001; // Use a small threshold
-    console.log(`[PlayerLocal.update] Calculated moveDir: (${this.moveDir.x}, ${this.moveDir.y}, ${this.moveDir.z}), Moving: ${this.moving}`);
+
+    // we're moving if direction is set
+    this.moving = this.moveDir.length() > 0
 
     // check effect cancel
     if (this.data.effect?.cancellable && (this.moving || this.jumpDown)) {
-      this.setEffect(null);
+      this.setEffect(null)
     }
 
     if (freeze || anchor) {
       // cancel movement
-      this.moveDir.set(0, 0, 0);
-      this.moving = false;
+      this.moveDir.set(0, 0, 0)
+      this.moving = false
     }
 
     // determine if we're "running"
     if (this.stick || isXR) {
-      this.running = this.moving && this.moveDir.length() > 0.5;
+      // touch/xr joysticks at full extent
+      this.running = this.moving && this.moveDir.length() > 0.5
     } else {
       // or keyboard shift key
-      this.running = this.moving && (this.control.shiftLeft.down || this.control.shiftRight.down);
+      this.running = this.moving && (this.control.shiftLeft.down || this.control.shiftRight.down)
     }
 
     // normalize direction (also prevents surfing)
-    this.moveDir.normalize();
+    this.moveDir.normalize()
 
     // flying direction
     if (isXR) {
-      this.flyDir.copy(this.moveDir);
-      this.flyDir.applyQuaternion(this.world.xr.camera.quaternion);
+      this.flyDir.copy(this.moveDir)
+      this.flyDir.applyQuaternion(this.world.xr.camera.quaternion)
     } else {
-      this.flyDir.copy(this.moveDir);
-      this.flyDir.applyQuaternion(this.cam.quaternion);
+      this.flyDir.copy(this.moveDir)
+      this.flyDir.applyQuaternion(this.cam.quaternion)
     }
 
     // rotate direction to face camera Y direction
     if (isXR) {
-      if (this.world.xr?.camera) {
-        e1.copy(this.world.xr.camera.rotation).reorder('YXZ');
-        const yQuaternion = q1.setFromAxisAngle(UP, e1.y);
-        this.moveDir.applyQuaternion(yQuaternion);
-      } else {
-        const yQuaternion = q1.setFromAxisAngle(UP, this.cam.rotation.y);
-        this.moveDir.applyQuaternion(yQuaternion);
-      }
+      e1.copy(this.world.xr.camera.rotation).reorder('YXZ')
+      const yQuaternion = q1.setFromAxisAngle(UP, e1.y)
+      this.moveDir.applyQuaternion(yQuaternion)
     } else {
-      const yQuaternion = q1.setFromAxisAngle(UP, this.cam.rotation.y);
-      this.moveDir.applyQuaternion(yQuaternion);
+      const yQuaternion = q1.setFromAxisAngle(UP, this.cam.rotation.y)
+      this.moveDir.applyQuaternion(yQuaternion)
     }
 
     // if our effect has turn enabled, face the camera direction
     if (this.data.effect?.turn) {
-      let cameraY = 0;
-      if (isXR && this.world.xr?.camera) {
-        e1.copy(this.world.xr.camera.rotation).reorder('YXZ');
-        cameraY = e1.y;
+      let cameraY = 0
+      if (isXR) {
+        e1.copy(this.world.xr.camera.rotation).reorder('YXZ')
+        cameraY = e1.y
       } else {
-        cameraY = this.cam.rotation.y;
+        cameraY = this.cam.rotation.y
       }
-      e1.set(0, cameraY, 0);
-      q1.setFromEuler(e1);
-      const alpha = 1 - Math.pow(0.00000001, delta);
-      this.base.quaternion.slerp(q1, alpha);
+      e1.set(0, cameraY, 0)
+      q1.setFromEuler(e1)
+      const alpha = 1 - Math.pow(0.00000001, delta)
+      this.base.quaternion.slerp(q1, alpha)
     }
     // if we're moving continually rotate ourselves toward the direction we are moving
     else if (this.moving) {
-      const alpha = 1 - Math.pow(0.00000001, delta);
-      q1.setFromUnitVectors(FORWARD, this.moveDir);
-      this.base.quaternion.slerp(q1, alpha);
+      const alpha = 1 - Math.pow(0.00000001, delta)
+      q1.setFromUnitVectors(FORWARD, this.moveDir)
+      this.base.quaternion.slerp(q1, alpha)
     }
 
     // emote
     let emote
     if (this.data.effect?.emote) {
-      emote = this.data.effect.emote;
+      emote = this.data.effect.emote
     } else if (this.flying) {
-      emote = Emotes.FLOAT;
+      emote = Emotes.FLOAT
     } else if (this.airJumping) {
-      emote = Emotes.FLIP;
+      emote = Emotes.FLIP
     } else if (this.jumping) {
-      emote = Emotes.FLOAT;
+      emote = Emotes.FLOAT
     } else if (this.falling) {
-      emote = this.fallDistance > 1.6 ? Emotes.FALL : Emotes.FLOAT;
+      emote = this.fallDistance > 1.6 ? Emotes.FALL : Emotes.FLOAT
     } else if (this.moving) {
-      emote = this.running ? Emotes.RUN : Emotes.WALK;
+      emote = this.running ? Emotes.RUN : Emotes.WALK
     } else if (this.speaking) {
-      emote = Emotes.TALK;
+      emote = Emotes.TALK
     }
-    if (!emote) emote = Emotes.IDLE;
-    let emoteChanged;
+    if (!emote) emote = Emotes.IDLE
+    let emoteChanged
     if (this.emote !== emote) {
-      this.emote = emote;
-      emoteChanged = true;
+      this.emote = emote
+      emoteChanged = true
     }
-    this.avatar?.setEmote(this.emote);
+    this.avatar?.setEmote(this.emote)
 
     // send network updates
-    this.lastSendAt += delta;
+    this.lastSendAt += delta
     if (this.lastSendAt >= this.world.networkRate) {
       if (!this.lastState) {
         this.lastState = {
@@ -859,46 +832,45 @@ export class PlayerLocal extends Entity {
           p: this.base.position.clone(),
           q: this.base.quaternion.clone(),
           e: this.emote,
-        };
+        }
       }
       const data = {
         id: this.data.id,
-      };
-      let hasChanges;
+      }
+      let hasChanges
       if (!this.lastState.p.equals(this.base.position)) {
-        data.p = this.base.position.toArray();
-        this.lastState.p.copy(this.base.position);
-        hasChanges = true;
+        data.p = this.base.position.toArray()
+        this.lastState.p.copy(this.base.position)
+        hasChanges = true
       }
       if (!this.lastState.q.equals(this.base.quaternion)) {
-        data.q = this.base.quaternion.toArray();
-        this.lastState.q.copy(this.base.quaternion);
-        hasChanges = true;
+        data.q = this.base.quaternion.toArray()
+        this.lastState.q.copy(this.base.quaternion)
+        hasChanges = true
       }
       if (this.lastState.e !== this.emote) {
-        data.e = this.emote;
-        this.lastState.e = this.emote;
-        hasChanges = true;
+        data.e = this.emote
+        this.lastState.e = this.emote
+        hasChanges = true
       }
       if (hasChanges) {
-        this.world.network.send('entityModified', data);
+        this.world.network.send('entityModified', data)
       }
-      this.lastSendAt = 0;
+      this.lastSendAt = 0
     }
 
     // effect duration
     if (this.data.effect?.duration) {
-      this.data.effect.duration -= delta;
+      this.data.effect.duration -= delta
       if (this.data.effect.duration <= 0) {
-        this.setEffect(null);
+        this.setEffect(null)
       }
     }
   }
 
   lateUpdate(delta) {
-    // Use optional chaining for world.xr
-    const isXR = this.world.xr?.session; 
-    const anchor = this.getAnchorMatrix();
+    const isXR = this.world.xr?.session
+    const anchor = this.getAnchorMatrix()
     // if we're anchored, force into that pose
     if (anchor) {
       this.base.position.setFromMatrixPosition(anchor)
@@ -908,28 +880,24 @@ export class PlayerLocal extends Entity {
       this.capsuleHandle.snap(pose)
     }
     // make camera follow our position horizontally
-    this.cam.position.copy(this.base.position);
+    this.cam.position.copy(this.base.position)
     if (isXR) {
-      // ... XR camera logic (currently empty) ...
+      // ...
     } else {
       // and vertically at our vrm model height
-      this.cam.position.y += this.camHeight;
+      this.cam.position.y += this.camHeight
       // and slightly to the right over the avatars shoulder, when not in XR
-      const forward = v1.copy(FORWARD).applyQuaternion(this.cam.quaternion);
-      const right = v2.crossVectors(forward, UP).normalize();
-      this.cam.position.add(right.multiplyScalar(0.3));
+      const forward = v1.copy(FORWARD).applyQuaternion(this.cam.quaternion)
+      const right = v2.crossVectors(forward, UP).normalize()
+      this.cam.position.add(right.multiplyScalar(0.3))
     }
-    // Use optional chaining for world.xr
-    if (this.world.xr?.session) { 
+    if (this.world.xr?.session) {
       // in vr snap camera
-      this.control.camera.position.copy(this.cam.position);
-      this.control.camera.quaternion.copy(this.cam.quaternion);
+      this.control.camera.position.copy(this.cam.position)
+      this.control.camera.quaternion.copy(this.cam.quaternion)
     } else {
       // otherwise interpolate camera towards target
-      // Safely access control.camera
-      if (this.control?.camera) { 
-          simpleCamLerp(this.world, this.control.camera, this.cam, delta);
-      } 
+      simpleCamLerp(this.world, this.control.camera, this.cam, delta)
     }
     if (this.avatar) {
       const matrix = this.avatar.getBoneTransform('head')
