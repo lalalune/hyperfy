@@ -46,7 +46,7 @@ const storage = new Storage(path.join(worldDir, '/storage.json'))
 
 // create world
 const world = createServerWorld()
-world.collections?.deserialize(collections)
+world.collections.deserialize(collections)
 world.init({ db, storage, loadPhysX })
 
 const fastify = Fastify({ logger: { level: 'error' } })

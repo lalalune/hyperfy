@@ -33,14 +33,8 @@ export function createJWT(data) {
 
 export function readJWT(token) {
   return new Promise((resolve, reject) => {
-    if (!jwtSecret) {
-        return reject(new Error("JWT_SECRET environment variable is not set."));
-    }
     jwt.verify(token, jwtSecret, (err, data) => {
-      if (err) {
-        return reject(new Error(`JWT verification failed: ${err.message}`));
-      }
-      resolve(data);
-    });
-  });
+      resolve(err ? null : data)
+    })
+  })
 }

@@ -55,14 +55,10 @@ export function readPacket(packet) {
   try {
     const [id, data] = packr.unpack(packet)
     const info = byId[id]
-    if (!info) {
-      console.error(`[readPacket] Error: Unknown packet ID ${id}`)
-      return []
-    }
+    if (!info) throw new Error(`readPacket failed: ${id} (id not found)`)
     return [info.method, data]
   } catch (err) {
-    console.error("[readPacket] Error unpacking packet:", err)
-    console.error("[readPacket] Packet data (first 100 bytes):", packet?.slice ? Buffer.from(packet.slice(0, 100)).toString('hex') : packet)
+    console.error(err)
     return []
   }
 }

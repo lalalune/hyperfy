@@ -215,7 +215,6 @@ export class ServerNetwork extends System {
   }
 
   async onConnection(ws, authToken) {
-    console.log(`[ServerNetwork] onConnection received. Auth token type: ${typeof authToken}, value: "${authToken}"`);
     try {
       // check player limit
       const playerLimit = this.world.settings.playerLimit
@@ -228,32 +227,15 @@ export class ServerNetwork extends System {
 
       // get or create user
       let user
-      if (authToken && typeof authToken === 'string' && authToken !== 'null' && authToken !== 'undefined') {
-        console.log(`[ServerNetwork] Attempting to read JWT for token: "${authToken}"`);
+      if (authToken) {
         try {
-          const decodedData = await readJWT(authToken);
-          if (decodedData && decodedData.userId) {
-             console.log(`[ServerNetwork] JWT decoded successfully for userId: ${decodedData.userId}`);
-             user = await this.db('users').where('id', decodedData.userId).first();
-             if (user) {
-                console.log(`[ServerNetwork] Found user in DB: ${user.id}`);
-             } else {
-                console.log(`[ServerNetwork] User ID ${decodedData.userId} from token not found in DB.`);
-             }
-          } else {
-             console.warn("[ServerNetwork] readJWT resolved but returned invalid data.", decodedData);
-          }
+          const { userId } = await readJWT(authToken)
+          user = await this.db('users').where('id', userId).first()
         } catch (err) {
-          console.error(`[ServerNetwork] Failed to read/verify authToken: "${authToken}". Error:`, err.message);
-          user = null;
-          authToken = null;
+          console.error('failed to read authToken:', authToken)
         }
-      } else {
-        console.log("[ServerNetwork] No valid authToken provided.");
       }
-      
       if (!user) {
-        console.log("[ServerNetwork] No user found or token invalid/missing, creating new user.");
         user = {
           id: uuid(),
           name: 'Anonymous',
@@ -263,9 +245,8 @@ export class ServerNetwork extends System {
         }
         await this.db('users').insert(user)
         authToken = await createJWT({ userId: user.id })
-        console.log(`[ServerNetwork] Created new user ${user.id} and new token.`);
       }
-      user.roles = user.roles?.split(',') || [];
+      user.roles = user.roles.split(',')
 
       // disconnect if user already in this world
       if (this.sockets.has(user.id)) {
@@ -325,11 +306,8 @@ export class ServerNetwork extends System {
       // enter events on the server are sent after the snapshot.
       // on the client these are sent during PlayerRemote.js entity instantiation!
       this.world.events.emit('enter', { playerId: socket.player.data.id })
-
-      console.log(`[ServerNetwork] Final user ID for connection: ${user.id}, Roles: ${user.roles.join(',')}`);
     } catch (err) {
-      console.error("[ServerNetwork] Error during onConnection:", err);
-      try { ws.terminate(); } catch (e) {}
+      console.error(err)
     }
   }
 
