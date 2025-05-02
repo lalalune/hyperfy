@@ -59,7 +59,8 @@ class Stats {
     this.mode = mode
     this.horizontal = horizontal
     this.dom = document.createElement('div')
-    this.dom.style.cssText = 'position:fixed;top:0;left:0;opacity:0.9;z-index:10000;'
+    this.dom.style.cssText =
+      'position:absolute;top:0;right:0;opacity:0.9;z-index:10000;display:flex;align-items:center;'
 
     if (minimal) {
       this.dom.style.cssText += 'cursor:pointer'
@@ -150,7 +151,7 @@ class Stats {
   }
 
   resizePanel(panel, offset) {
-    panel.canvas.style.position = 'absolute'
+    // panel.canvas.style.position = 'absolute'
 
     if (this.minimal) {
       panel.canvas.style.display = 'none'

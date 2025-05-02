@@ -56,6 +56,7 @@ export class LOD extends Node {
     super.copy(source, recursive)
     this.lods = source.lods.map(lod => {
       const node = this.children.find(node => node.id === lod.node.id)
+      node.active = false
       const maxDistance = lod.maxDistance
       return {
         node,

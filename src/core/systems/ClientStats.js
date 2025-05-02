@@ -56,7 +56,6 @@ export class ClientStats extends System {
           mode: 0,
         })
         this.stats.init(this.world.graphics.renderer, false)
-        this.stats.dom.style.position = 'absolute'
         this.ping = new Panel('PING', '#f00', '#200')
         this.stats.addPanel(this.ping, 3)
       }

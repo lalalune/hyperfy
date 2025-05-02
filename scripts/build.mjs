@@ -31,13 +31,13 @@ const clientHtmlDest = path.join(rootDir, 'build/public/index.html')
     format: 'esm',
     bundle: true,
     treeShaking: true,
-    minify: false,
+    minify: !dev,
     sourcemap: true,
     metafile: true,
     jsx: 'automatic',
     jsxImportSource: '@firebolt-dev/jsx',
     define: {
-      // 'process.env.NODE_ENV': '"development"',
+      'process.env.NODE_ENV': dev ? '"development"' : '"production"',
     },
     loader: {
       '.js': 'jsx',
@@ -78,6 +78,8 @@ const clientHtmlDest = path.join(rootDir, 'build/public/index.html')
   } else {
     await clientCtx.rebuild()
   }
+  const buildResult = await clientCtx.rebuild()
+  fs.writeFileSync(path.join(buildDir, 'meta.json'), JSON.stringify(buildResult.metafile, null, 2))
 }
 
 /**
