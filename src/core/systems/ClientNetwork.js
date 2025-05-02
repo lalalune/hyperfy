@@ -105,7 +105,10 @@ export class ClientNetwork extends System {
     this.world.chat?.deserialize(data.chat);
     this.world.blueprints?.deserialize(data.blueprints);
     this.world.entities?.deserialize(data.entities);
-    this.world.livekit?.deserialize(data.livekit);
+
+    if (this.world.livekit?.deserialize) { // Deserialize for browser client ONLY
+        this.world.livekit?.deserialize(data.livekit); 
+    }
     
     try {
         storage.set('authToken', data.authToken); 

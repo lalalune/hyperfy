@@ -41,7 +41,7 @@ import { XR } from './systems/XR'
  * @param {{ env: 'browser' | 'node' }} options - Configuration options.
  * @returns {World}
  */
-export function createClientWorld(options = { env: 'browser' }) {
+export function createClientWorld() {
   const world = new World()
 
   // Define registration logic reusable for systems
@@ -65,8 +65,8 @@ export function createClientWorld(options = { env: 'browser' }) {
   registerSystem('stage', Stage) // Basic scene graph needed by many systems
   registerSystem('network', ClientNetwork) // Use ClientNetwork for both
 
-  // --- Register Environment-Specific Systems ---
-  if (options.env !== 'node') {
+  // check if window is undefined
+  if (typeof window !== 'undefined') {
     // Client-only systems
     registerSystem('client', Client)
     registerSystem('livekit', ClientLiveKit)
