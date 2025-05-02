@@ -15,15 +15,8 @@ let worker
 export class Client extends System {
   constructor(world) {
     super(world)
-    if (typeof window !== 'undefined') {
-      // Browser environment
-      window.world = world
-      window.THREE = THREE
-    } else if (typeof global !== 'undefined') {
-      // Node.js environment
-      global.world = world
-      global.THREE = THREE
-    }
+    window.world = world
+    window.THREE = THREE
   }
 
   async init({ loadYoga }) {

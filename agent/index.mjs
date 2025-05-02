@@ -1,6 +1,7 @@
+import 'ses';
+
 import { performance } from 'perf_hooks'; // Node.js performance hooks
 import * as THREE from 'three'; // <-- Add THREE import
-import { createClientWorld, loadNodePhysX, storage } from '../build/core.js';
 
 // --- Configuration ---
 const WS_URL = process.env.WS_URL || 'ws://localhost:3000/ws';
@@ -10,12 +11,26 @@ const CHAT_INTERVAL = 5000; // ms (how often the agent sends a chat message) - U
 const LOG_INTERVAL = 1000; // ms (how often to log user data)
 // ---------------------
 
-let world;
 let tickIntervalId = null;
 let moveIntervalId = null;
 let chatIntervalId = null;
 let logIntervalId = null; // <-- Add ID for log interval
 let lastChatMsgCount = 0;
+
+let world;
+if (typeof window !== 'undefined') {
+  // Browser environment
+  window.world = world
+  window.THREE = THREE
+  window.env = process.env
+} else if (typeof global !== 'undefined') {
+  // Node.js environment
+  global.world = world
+  global.THREE = THREE
+  global.env = process.env
+}
+
+import { createClientWorld, loadNodePhysX, storage } from '../build/core.js';
 
 async function runAgent() {
   console.log(`Agent connecting to ${WS_URL}...`);
@@ -83,10 +98,10 @@ function startSimulation() {
 
   function tickLoop() {
       const now = performance.now();
-      console.log(`[Agent tickLoop] Running at time: ${now}`); // <-- Log loop entry
+      // console.log(`[Agent tickLoop] Running at time: ${now}`); // <-- Log loop entry
       try {
           world.tick(now); 
-          console.log(`[Agent tickLoop] world.tick completed.`); // <-- Log after tick (if no error)
+          // console.log(`[Agent tickLoop] world.tick completed.`); // <-- Log after tick (if no error)
       } catch (e) {
           console.error("[Agent tickLoop] Error during world.tick:", e); // <-- Catch errors
           // Optionally stop the loop on error:
@@ -98,7 +113,7 @@ function startSimulation() {
       // Schedule next tick precisely
       const elapsed = performance.now() - now;
       const delay = Math.max(0, tickIntervalMs - elapsed);
-      console.log(`[Agent tickLoop] Scheduling next tick with delay: ${delay.toFixed(2)}ms`); // <-- Log scheduling
+      // console.log(`[Agent tickLoop] Scheduling next tick with delay: ${delay.toFixed(2)}ms`); // <-- Log scheduling
       tickIntervalId = setTimeout(tickLoop, delay); 
   }
   

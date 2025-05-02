@@ -142,9 +142,16 @@ let spawn
         name: 'server-finalize-plugin',
         setup(build) {
           build.onEnd(async result => {
+
+            const physxIdlSrc = path.join(rootDir, 'src/server/physx/physx-js-webidl.js')
+            const physxIdlDest = path.join(rootDir, 'build/physx-js-webidl.js')
+            console.log('Copying physx idl to build directory:', physxIdlDest)
+            await fs.copy(physxIdlSrc, physxIdlDest)
+
             // copy over physx wasm
             const physxWasmSrc = path.join(rootDir, 'src/server/physx/physx-js-webidl.wasm')
             const physxWasmDest = path.join(rootDir, 'build/physx-js-webidl.wasm')
+            console.log('Copying physx wasm to build directory:', physxWasmDest)
             await fs.copy(physxWasmSrc, physxWasmDest)
             // start the server or stop here
             if (dev) {
