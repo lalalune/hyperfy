@@ -87,7 +87,7 @@ const clientHtmlDest = path.join(rootDir, 'build/public/index.html')
  */
 {
   const agentCoreCtx = await esbuild.context({
-    entryPoints: ['src/core/agent-exports.js'],
+    entryPoints: ['src/core/exports.js'],
     outfile: 'build/core.js',
     platform: 'node',
     format: 'esm',

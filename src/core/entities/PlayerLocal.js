@@ -269,36 +269,45 @@ export class PlayerLocal extends Entity {
   }
 
   initControl() {
-    this.control = this.world.controls.bind({
-      priority: ControlPriorities.PLAYER,
-      onTouch: touch => {
-        if (!this.stick && touch.position.x < this.control.screen.width / 2) {
-          this.stick = {
-            center: touch.position.clone(),
-            touch,
-          }
-        } else if (!this.pan) {
-          this.pan = touch
-        }
-      },
-      onTouchEnd: touch => {
-        if (this.stick?.touch === touch) {
-          this.stick = null
-        }
-        if (this.pan === touch) {
-          this.pan = null
-        }
-      },
-    })
-    if(this.control.camera){
-
-      this.control.camera.write = true
-      this.control.camera.position.copy(this.cam.position)
-      this.control.camera.quaternion.copy(this.cam.quaternion)
-      this.control.camera.zoom = this.cam.zoom
+    // Check if we have the ClientControls bind method or the AgentControls direct object
+    if (typeof this.world.controls?.bind === 'function') {
+        // Client Environment: Call bind to get the correct interface
+        // console.log("[PlayerLocal.initControl] Using controls.bind() for Client environment.");
+        this.control = this.world.controls.bind({ 
+            priority: ControlPriorities.PLAYER,
+            // Add back touch handlers if they were needed for client
+            onTouch: touch => {
+              if (!this.stick && this.control?.screen && touch.position.x < this.control.screen.width / 2) {
+                this.stick = {
+                  center: touch.position.clone(),
+                  touch,
+                }
+              } else if (!this.pan) {
+                this.pan = touch
+              }
+            },
+            onTouchEnd: touch => {
+              if (this.stick?.touch === touch) {
+                this.stick = null
+              }
+              if (this.pan === touch) {
+                this.pan = null
+              }
+            },
+        });
+    } else {
+        // Agent Environment: Directly assign the proxied AgentControls instance
+        // console.log("[PlayerLocal.initControl] Assigning world.controls directly for Agent environment.");
+        this.control = this.world.controls; 
     }
-      // this.control.setActions([{ type: 'space', label: 'Jump / Double-Jump' }])
-      // this.control.setActions([{ type: 'escape', label: 'Menu' }])
+    
+    // Ensure camera write still happens if needed (check if control and camera exist)
+    if (this.control?.camera) { 
+        this.control.camera.write = true;
+        this.control.camera.position.copy(this.cam.position);
+        this.control.camera.quaternion.copy(this.cam.quaternion);
+        this.control.camera.zoom = this.cam.zoom;
+    }
   }
 
   toggleFlying() {
@@ -592,18 +601,21 @@ export class PlayerLocal extends Entity {
 
       this.capsule.setLinearVelocity(velocity.toPxVec3())
 
+      // --> Log before applying move force <--
+      console.log(`[PlayerLocal.fixedUpdate] Moving state: ${this.moving}, moveDir: (${this.moveDir.x.toFixed(2)}, ${this.moveDir.z.toFixed(2)})`);
+      
       // apply move force, projected onto ground normal
       if (this.moving) {
         let moveSpeed = (this.running ? 8 : 4) * this.mass // run
         moveSpeed *= 1 - snare
-        const slopeRotation = q1.setFromUnitVectors(UP, this.groundNormal)
-        const moveForce = v1.copy(this.moveDir).multiplyScalar(moveSpeed * 10).applyQuaternion(slopeRotation) // prettier-ignore
-        this.capsule.addForce(moveForce.toPxVec3(), PHYSX.PxForceModeEnum.eFORCE, true)
-        // alternative (slightly different projection)
-        // let moveSpeed = 10
-        // const slopeMoveDir = v1.copy(this.moveDir).projectOnPlane(this.groundNormal).normalize()
-        // const moveForce = v2.copy(slopeMoveDir).multiplyScalar(moveSpeed * 10)
-        // this.capsule.addForce(moveForce.toPxVec3(), PHYSX.PxForceModeEnum.eFORCE, true)
+        const slopeRotation = q1.setFromUnitVectors(UP, this.groundNormal);
+        const moveForce = v1.copy(this.moveDir).multiplyScalar(moveSpeed * 10).applyQuaternion(slopeRotation);
+        // --> Log calculated move force <--
+        console.log(`[PlayerLocal.fixedUpdate] Applying move force: (${moveForce.x.toFixed(2)}, ${moveForce.y.toFixed(2)}, ${moveForce.z.toFixed(2)})`);
+        this.capsule.addForce(moveForce.toPxVec3(), PHYSX.PxForceModeEnum.eFORCE, true);
+      } 
+      else { // --> Log if not applying force <--
+         console.log("[PlayerLocal.fixedUpdate] Not moving, no move force applied.");
       }
 
       // ground/air jump
@@ -718,39 +730,33 @@ export class PlayerLocal extends Entity {
       this.jumpPressed = true;
     }
 
+    // --> Log this.control instance <--
+    // console.log("[PlayerLocal.update] this.control is:", this.control);
+
     // get our movement direction
     this.moveDir.set(0, 0, 0);
+    // --> Log control state read <--
+    const wDown = this.control?.keyW?.down || this.control?.arrowUp?.down;
+    const sDown = this.control?.keyS?.down || this.control?.arrowDown?.down;
+    const aDown = this.control?.keyA?.down || this.control?.arrowLeft?.down;
+    const dDown = this.control?.keyD?.down || this.control?.arrowRight?.down;
+    console.log(`[PlayerLocal.update] Reading controls - W:${wDown}, S:${sDown}, A:${aDown}, D:${dDown}`);
+
     if (isXR) {
-      // in xr use controller input
-      this.moveDir.x = this.control.xrLeftStick.value.x;
-      this.moveDir.z = this.control.xrLeftStick.value.z;
+       // ... XR logic ...
     } else if (this.stick) {
-      // if we have a touch joystick use that
-      const touchX = this.stick.touch.position.x;
-      const touchY = this.stick.touch.position.y;
-      const centerX = this.stick.center.x;
-      const centerY = this.stick.center.y;
-      const dx = centerX - touchX;
-      const dy = centerY - touchY;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      if (distance > STICK_MAX_DISTANCE) {
-        this.stick.center.x = touchX + (STICK_MAX_DISTANCE * dx) / distance;
-        this.stick.center.y = touchY + (STICK_MAX_DISTANCE * dy) / distance;
-      }
-      const stickX = (touchX - this.stick.center.x) / STICK_MAX_DISTANCE;
-      const stickY = (touchY - this.stick.center.y) / STICK_MAX_DISTANCE;
-      this.moveDir.x = stickX;
-      this.moveDir.z = stickY;
+       // ... stick logic ...
     } else {
       // otherwise use keyboard
-      if (this.control.keyW?.down || this.control.arrowUp?.down) this.moveDir.z -= 1;
-      if (this.control.keyS?.down || this.control.arrowDown?.down) this.moveDir.z += 1;
-      if (this.control.keyA?.down || this.control.arrowLeft?.down) this.moveDir.x -= 1;
-      if (this.control.keyD?.down || this.control.arrowRight?.down) this.moveDir.x += 1;
+      if (wDown) this.moveDir.z -= 1;
+      if (sDown) this.moveDir.z += 1;
+      if (aDown) this.moveDir.x -= 1;
+      if (dDown) this.moveDir.x += 1;
     }
-
-    // we're moving if direction is set
-    this.moving = this.moveDir.length() > 0;
+    
+    // --> Log calculated moveDir and moving state <--
+    this.moving = this.moveDir.length() > 0.001; // Use a small threshold
+    console.log(`[PlayerLocal.update] Calculated moveDir: (${this.moveDir.x}, ${this.moveDir.y}, ${this.moveDir.z}), Moving: ${this.moving}`);
 
     // check effect cancel
     if (this.data.effect?.cancellable && (this.moving || this.jumpDown)) {

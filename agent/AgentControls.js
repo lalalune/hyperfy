@@ -1,120 +1,82 @@
 import { System } from '../build/core.js';
 
-/**
- * Agent Controls System
- *
- * Minimal controls system for Node.js agents.
- * Allows setting key states programmatically.
- * Provides the same interface structure as ClientControls
- * for compatibility with systems like PlayerLocal.
- */
-
 // Helper to create the button state object
 function createButtonState() {
   return {
-    $button: true, // Mark as a button object
+    $button: true, 
     down: false,
     pressed: false,
     released: false,
   };
 }
 
-// Export the class directly
+// Simplified AgentControls without Proxy
 export class AgentControls extends System {
   constructor(world) {
     super(world);
-    this._buttonStates = {};
-
-    // Pre-populate common keys expected by PlayerLocal
+    // Define expected control properties directly on the instance
     const commonKeys = [
       'keyW', 'keyA', 'keyS', 'keyD',
       'space', 'shiftLeft', 'shiftRight', 'controlLeft', 'keyC', 'keyF', 'keyE',
-      'arrowUp', 'arrowDown', 'arrowLeft', 'arrowRight'
-      // Add any other keys PlayerLocal might read
+      'arrowUp', 'arrowDown', 'arrowLeft', 'arrowRight',
+      'touchA', 'touchB', // Add touch if PlayerLocal might check them
+      'xrLeftStick', 'xrRightStick', // Add dummy XR if needed
+      'xrLeftBtn1', 'xrLeftBtn2', 'xrRightBtn1', 'xrRightBtn2'
     ];
     commonKeys.forEach(key => {
-      this._buttonStates[key] = createButtonState();
+      this[key] = createButtonState(); 
     });
-    
-    // Also add mouse buttons if needed (unlikely for basic agent)
-    // this._buttonStates['mouseLeft'] = createButtonState();
-    // this._buttonStates['mouseRight'] = createButtonState();
+
+    // Add other expected properties with default/dummy values
+    this.scrollDelta = { value: 0 };
+    this.pointer = { locked: false, delta: { x:0, y:0 } }; // Add dummy pointer needed by PlayerLocal
+    this.camera = undefined; // PlayerLocal checks for this
+    this.screen = undefined; // PlayerLocal checks for this
+
+    // Add dummy XR sticks if PlayerLocal accesses them directly
+    if (!this.xrLeftStick) this.xrLeftStick = { value: {x:0, y:0, z:0} };
+    if (!this.xrRightStick) this.xrRightStick = { value: {x:0, y:0, z:0} };
+
   }
 
   // Method for the agent script to set a key state
   setKey(keyName, isDown) {
-    console.log("[AgentControls setKey] Setting key:", keyName, isDown);
-    if (!this._buttonStates[keyName]) {
-      // console.warn(`AgentControls: Key "${keyName}" not pre-defined, creating dynamically.`);
-      this._buttonStates[keyName] = createButtonState();
+    if (!this[keyName] || !this[keyName].$button) {
+      // console.warn(`AgentControls: Key "${keyName}" not defined or not a button state.`);
+      this[keyName] = createButtonState(); // Create if missing
     }
-    const state = this._buttonStates[keyName];
+    const state = this[keyName];
     
     if (isDown && !state.down) {
-      state.pressed = true; // Set pressed on the tick it goes down
+      state.pressed = true; 
       state.released = false;
     } else if (!isDown && state.down) {
-      state.released = true; // Set released on the tick it goes up
+      state.released = true; 
       state.pressed = false;
     }
     state.down = isDown;
   }
 
-  // Method for systems (like PlayerLocal) to get a key state object
-  getKey(keyName) {
-    if (!this._buttonStates[keyName]) {
-        this._buttonStates[keyName] = createButtonState();
-    }
-    const state = this._buttonStates[keyName];
-    return state;
-  }
-  
-  // Mimic the proxy access of ClientControls for compatibility
-  get(keyName) {
-      return this.getKey(keyName);
-  }
-
-  // Reset pressed/released flags at the end of the frame (like ClientControls)
+  // Reset pressed/released flags at the end of the frame
   postLateUpdate() {
-    for (const key in this._buttonStates) {
-      const state = this._buttonStates[key];
-      state.pressed = false;
-      state.released = false;
+    for (const key in this) {
+       // Check if it's actually a button state object we manage
+      if (this.hasOwnProperty(key) && this[key]?.$button) { 
+        this[key].pressed = false;
+        this[key].released = false;
+      }
     }
   }
   
-  // Return the proxied instance itself so PlayerLocal gets the correct reference
+  // Dummy bind/release/setActions needed for PlayerLocal init check
   bind(options) { 
-      // console.warn("AgentControls.bind() called."); // Keep warning commented unless needed
-      // PlayerLocal expects bind() to return the object with key states
       return this; 
   }
-
-  // Dummy release/setActions, called by PlayerLocal but do nothing for agent
   release() {}
   setActions() {}
-
-  // Provide dummy camera/pointer/screen if absolutely necessary, but avoid if possible
-  get camera() { return undefined; }
-  get pointer() { return undefined; }
-  get screen() { return undefined; }
-  get scrollDelta() { 
-      return { value: 0 }; 
-  }
-  // ... add other dummy properties if required by PlayerLocal or other systems ...
 }
 
-// Define the proxy handler separately
-export const controlProxyHandler = {
-    get(target, prop) {
-        // Remove logging now that we know the issue
-        if (prop in target || typeof target[prop] === 'function' || typeof prop === 'symbol' || prop.startsWith('_')) {
-            return Reflect.get(target, prop);
-        }
-        // console.log(`[AgentControls Proxy] Intercepting get for key: "${String(prop)}"`); 
-        return target.getKey(prop);
-    }
-};
-
-// REMOVE the factory function export
-// export const AgentControls = (world) => new Proxy(new AgentControlsInternal(world), controlProxyHandler); 
+// Remove Proxy handler and related export
+/*
+export const controlProxyHandler = { ... };
+*/ 
