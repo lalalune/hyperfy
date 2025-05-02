@@ -140,14 +140,10 @@ let spawn
         name: 'server-finalize-plugin',
         setup(build) {
           build.onEnd(async result => {
-            // copy over physx wasm AND js bindings
-            const physxDir = path.join(rootDir, 'src/server/physx');
-            const physxFiles = ['physx-js-webidl.wasm', 'physx-js-webidl.js'];
-            for (const file of physxFiles) {
-              const src = path.join(physxDir, file);
-              const dest = path.join(buildDir, file);
-              await fs.copy(src, dest);
-            }
+            // copy over physx wasm
+            const physxWasmSrc = path.join(rootDir, 'src/server/physx/physx-js-webidl.wasm')
+            const physxWasmDest = path.join(rootDir, 'build/physx-js-webidl.wasm')
+            await fs.copy(physxWasmSrc, physxWasmDest)
             // start the server or stop here
             if (dev) {
               // (re)start server

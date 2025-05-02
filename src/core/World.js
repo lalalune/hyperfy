@@ -67,7 +67,7 @@ export class World extends EventEmitter {
 
   tick = time => {
     // --> Add log here <--
-    // console.log(`[World.tick] Frame: ${this.frame}, Time: ${time}`); 
+    console.log(`[World.tick] Frame: ${this.frame}, Time: ${time}`); 
 
     // begin any stats/performance monitors
     this.preTick()
@@ -111,7 +111,7 @@ export class World extends EventEmitter {
   }
 
   preTick() {
-    // console.log("[World.preTick] Called"); // Optional: Verify this too
+    console.log("[World.preTick] Called"); // Optional: Verify this too
     for (const system of this.systems) {
       system.preTick()
     }
@@ -119,7 +119,7 @@ export class World extends EventEmitter {
 
   preFixedUpdate(willFixedStep) {
     // --> Add log here <--
-    // console.log(`[World.preFixedUpdate] Called. willFixedStep: ${willFixedStep}`);
+    console.log(`[World.preFixedUpdate] Called. willFixedStep: ${willFixedStep}`);
     for (const system of this.systems) {
       system.preFixedUpdate(willFixedStep)
     }

@@ -45,7 +45,7 @@ export class AgentControls extends System {
   // Method for the agent script to set a key state
   setKey(keyName, isDown) {
     if (!this._buttonStates[keyName]) {
-      // console.warn(`AgentControls: Key "${keyName}" not pre-defined...`);
+      // console.warn(`AgentControls: Key "${keyName}" not pre-defined, creating dynamically.`);
       this._buttonStates[keyName] = createButtonState();
     }
     const state = this._buttonStates[keyName];
@@ -62,13 +62,13 @@ export class AgentControls extends System {
 
   // Method for systems (like PlayerLocal) to get a key state object
   getKey(keyName) {
-    // console.log(`[AgentControls getKey] Getting state for key: "${keyName}"`); 
+    console.log(`[AgentControls getKey] Getting state for key: "${keyName}"`); 
     if (!this._buttonStates[keyName]) {
-        // console.log(`[AgentControls getKey] Key "${keyName}" not found, creating default.`);
+        console.log(`[AgentControls getKey] Key "${keyName}" not found, creating default.`);
         this._buttonStates[keyName] = createButtonState();
     }
     const state = this._buttonStates[keyName];
-    // console.log(`[AgentControls getKey] Returning state for "${keyName}":`, state);
+    console.log(`[AgentControls getKey] Returning state for "${keyName}":`, state);
     return state;
   }
   
@@ -88,7 +88,8 @@ export class AgentControls extends System {
   
   // Return the proxied instance itself so PlayerLocal gets the correct reference
   bind(options) { 
-      // console.warn("AgentControls.bind() called.");
+      // console.warn("AgentControls.bind() called."); // Keep warning commented unless needed
+      // PlayerLocal expects bind() to return the object with key states
       return this; 
   }
 
@@ -110,6 +111,7 @@ export class AgentControls extends System {
 // Define the proxy handler separately
 export const controlProxyHandler = {
     get(target, prop) {
+        // Remove logging now that we know the issue
         if (prop in target || typeof target[prop] === 'function' || typeof prop === 'symbol' || prop.startsWith('_')) {
             return Reflect.get(target, prop);
         }

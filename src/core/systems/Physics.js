@@ -270,6 +270,8 @@ export class Physics extends System {
     this.handles = new Map()
     this.active = new Set()
 
+    this.materials = {}
+
     this.raycastResult = new PHYSX.PxRaycastResult()
     this.sweepPose = new PHYSX.PxTransform(PHYSX.PxIDENTITYEnum.PxIdentity)
     this.sweepResult = new PHYSX.PxSweepResult()
@@ -562,6 +564,20 @@ export class Physics extends System {
       overlapHits.push(hit)
     }
     return overlapHits
+  }
+
+  getMaterial(staticFriction, dynamicFriction, restitution) {
+    // we cache and re-use material as PhysX has a limit of 64k.
+    // this only works if the materials are not modified by the user, eg
+    // players change friction coefficients etc
+    // cached and re-used because PhysX has a limit of 64k
+    const id = `${staticFriction}${dynamicFriction}${restitution}`
+    let material = this.materials[id]
+    if (!material) {
+      material = this.physics.createMaterial(staticFriction, dynamicFriction, restitution)
+      this.materials[id] = material
+    }
+    return material
   }
 }
 

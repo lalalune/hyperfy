@@ -238,10 +238,16 @@ export class Apps extends System {
         // deprecated. will be removed
         return entity.blueprint.props
       },
+      keepActive(entity) {
+        return entity.keepActive
+      },
     }
     this.appSetters = {
       state(entity, value) {
         entity.data.state = value
+      },
+      keepActive(entity, value) {
+        entity.keepActive = value
       },
     }
     this.appMethods = {

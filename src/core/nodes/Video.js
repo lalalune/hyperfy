@@ -12,6 +12,17 @@ const q1 = new THREE.Quaternion()
 const groups = ['music', 'sfx']
 const distanceModels = ['linear', 'inverse', 'exponential']
 const fits = ['none', 'cover', 'contain']
+const pivots = [
+  'top-left',
+  'top-center',
+  'top-right',
+  'center-left',
+  'center',
+  'center-right',
+  'bottom-left',
+  'bottom-center',
+  'bottom-right',
+]
 
 const defaults = {
   screenId: null,
@@ -31,6 +42,7 @@ const defaults = {
 
   width: null,
   height: 1,
+  pivot: 'center',
 
   geometry: null,
 
@@ -68,6 +80,7 @@ export class Video extends Node {
 
     this.width = data.width
     this.height = data.height
+    this.pivot = data.pivot
 
     this.geometry = data.geometry
 
@@ -83,11 +96,14 @@ export class Video extends Node {
     this.coneOuterGain = data.coneOuterGain
 
     this.n = 0
+
+    this._loading = true
   }
 
   async mount() {
     this.needsRebuild = false
     if (this.ctx.world.network.isServer) return
+    this._loading = true
 
     const n = ++this.n
 
@@ -209,16 +225,21 @@ export class Video extends Node {
               // Return to 0-1 range
               uv = uv + 0.5;
             }
-            
-            // Check if UVs are outside the 0-1 range (only needed for contain mode)
-            vec4 col;
-            if (uHasMap < 0.5 || uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
-              // we are outside the texture or there is no video texture yet
-              col = vec4(uColor, 1.0);
-            } else {
-              // Sample the texture with the calculated UVs
-              col = texture2D(uMap, uv);
-            }
+
+            // pull UV into [0,1] before sampling
+            vec2 uvClamped = clamp(uv, 0.0, 1.0);
+            vec4 col = texture2D(uMap, uvClamped);
+
+            // outside coloring (for contain mode)
+            if (uFit >= 1.5) {
+              const float EPS = 0.005;
+              // decide “outside” based on the *raw* uv
+              bool outside = uv.x < -EPS || uv.x > 1.0 + EPS || uv.y < -EPS || uv.y > 1.0 + EPS;
+              if (outside) {
+                col = vec4(uColor, 1.0);
+              }
+            } 
+
             csm_DiffuseColor = sRGBToLinear(col);
           }
         `,
@@ -246,6 +267,7 @@ export class Video extends Node {
         geometry = new THREE.PlaneGeometry(width, height)
         geometry._oWidth = width
         geometry._oHeight = height
+        applyPivot(geometry, width, height, this._pivot)
       }
 
       // mesh
@@ -323,7 +345,9 @@ export class Video extends Node {
         }
         // new geometry if changed
         if (geometry._oWidth !== width || geometry._oHeight !== height) {
-          this.mesh.geometry = new THREE.PlaneGeometry(width, height)
+          const newGeometry = new THREE.PlaneGeometry(width, height)
+          applyPivot(newGeometry, width, height, this._pivot)
+          this.mesh.geometry = newGeometry
           geometry.dispose()
         }
         // if the video aspect is different to the plane aspect we need to ensure the texture is scaled correctly.
@@ -337,6 +361,9 @@ export class Video extends Node {
       material.uniforms.uMap.value = this.instance.texture
       material.uniforms.uHasMap.value = 1
       material.needsUpdate = true
+
+      this._loading = false
+      this._onLoad?.()
 
       if (this.shouldPlay) {
         this.instance.play()
@@ -365,6 +392,7 @@ export class Video extends Node {
   }
 
   unmount() {
+    if (this.ctx.world.network.isServer) return
     this.n++
     if (this.mesh) {
       this.ctx.world.stage.scene.remove(this.mesh)
@@ -428,6 +456,7 @@ export class Video extends Node {
 
     this._width = source._width
     this._height = source._height
+    this._pivot = source._pivot
 
     this._geometry = source._geometry
 
@@ -471,6 +500,7 @@ export class Video extends Node {
     }
     if (this._src === value) return
     this._src = value
+    this._loading = true
     this.needsRebuild = true
     this.setDirty()
   }
@@ -648,6 +678,20 @@ export class Video extends Node {
     this.setDirty()
   }
 
+  get pivot() {
+    return this._pivot
+  }
+
+  set pivot(value = defaults.pivot) {
+    if (!isPivot(value)) {
+      throw new Error('[video] pivot invalid')
+    }
+    if (this._pivot === value) return
+    this._pivot = value
+    this.needsRebuild = true
+    this.setDirty()
+  }
+
   get geometry() {
     return secureRef({}, () => this._geometry)
   }
@@ -798,15 +842,23 @@ export class Video extends Node {
     }
   }
 
-  get isPlaying() {
+  get loading() {
+    return this._loading
+  }
+
+  get duration() {
+    return this.instance ? this.instance.duration : 0
+  }
+
+  get playing() {
     return this.instance ? this.instance.isPlaying : false
   }
 
-  get currentTime() {
+  get time() {
     return this.instance ? this.instance.currentTime : 0
   }
 
-  set currentTime(value) {
+  set time(value) {
     if (this.instance) {
       this.instance.currentTime = value
     }
@@ -835,6 +887,14 @@ export class Video extends Node {
 
   set material(value) {
     throw new Error('[video] cannot set material')
+  }
+
+  get onLoad() {
+    return this._onLoad
+  }
+
+  set onLoad(value) {
+    this._onLoad = value
   }
 
   play(restartIfPlaying) {
@@ -941,6 +1001,12 @@ export class Video extends Node {
         set height(value) {
           self.height = value
         },
+        get pivot() {
+          return self.pivot
+        },
+        set pivot(value) {
+          self.pivot = value
+        },
         get geometry() {
           return self.geometry
         },
@@ -1007,20 +1073,44 @@ export class Video extends Node {
         set coneOuterGain(value) {
           self.coneOuterGain = value
         },
+        get loading() {
+          return self.loading
+        },
+        get duration() {
+          return self.duration
+        },
+        get playing() {
+          return self.playing
+        },
         get isPlaying() {
-          return self.isPlaying
+          // deprecated (use .playing)
+          return self.playing
+        },
+        get time() {
+          return self.time
+        },
+        set time(value) {
+          self.time = value
         },
         get currentTime() {
-          return self.currentTime
+          // deprecated (use .time)
+          return self.time
         },
         set currentTime(value) {
-          self.currentTime = value
+          // deprecated (use .time)
+          self.time = value
         },
         get material() {
           return self.material
         },
         set material(value) {
           self.material = value
+        },
+        get onLoad() {
+          return self.onLoad
+        },
+        set onLoad(value) {
+          self.onLoad = value
         },
         play(restartIfPlaying) {
           self.play(restartIfPlaying)
@@ -1049,4 +1139,27 @@ function isGroup(value) {
 
 function isFit(value) {
   return fits.includes(value)
+}
+
+function isPivot(value) {
+  return pivots.includes(value)
+}
+
+function applyPivot(geometry, width, height, pivot) {
+  if (pivot === 'center') return
+  let offsetX = 0
+  let offsetY = 0
+  if (pivot.includes('left')) {
+    offsetX = width / 2
+  } else if (pivot.includes('right')) {
+    offsetX = -width / 2
+  }
+  if (pivot.includes('top')) {
+    offsetY = -height / 2
+  } else if (pivot.includes('bottom')) {
+    offsetY = height / 2
+  }
+  if (offsetX !== 0 || offsetY !== 0) {
+    geometry.translate(offsetX, offsetY, 0)
+  }
 }

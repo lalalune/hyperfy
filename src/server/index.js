@@ -18,22 +18,37 @@ import { createServerWorld } from '../core/createServerWorld'
 import { hashFile } from '../core/utils-server'
 import { getDB } from './db'
 import { Storage } from './Storage'
+import { initCollections } from './collections'
 
 const rootDir = path.join(__dirname, '../')
 const worldDir = path.join(rootDir, process.env.WORLD)
 const assetsDir = path.join(worldDir, '/assets')
+const collectionsDir = path.join(worldDir, '/collections')
 const port = process.env.PORT
 
+// create world folders if needed
 await fs.ensureDir(worldDir)
 await fs.ensureDir(assetsDir)
+await fs.ensureDir(collectionsDir)
 
-// copy core assets
-await fs.copy(path.join(rootDir, 'src/core/assets'), path.join(assetsDir))
+// copy over built-in assets and collections
+await fs.copy(path.join(rootDir, 'src/world/assets'), path.join(assetsDir))
+await fs.copy(path.join(rootDir, 'src/world/collections'), path.join(collectionsDir))
 
+// init collections
+const collections = await initCollections({ collectionsDir, assetsDir })
+
+// init db
 const db = await getDB(path.join(worldDir, '/db.sqlite'))
 
+// init storage
 const storage = new Storage(path.join(worldDir, '/storage.json'))
+
+// create world
 const world = createServerWorld()
+console.log("world", world);
+world.collections?.deserialize(collections)
+console.log("world", world);
 world.init({ db, storage, loadPhysX })
 
 const fastify = Fastify({ logger: { level: 'error' } })

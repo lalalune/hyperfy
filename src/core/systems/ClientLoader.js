@@ -349,6 +349,7 @@ function createVideoFactory(world, url) {
   const sources = {}
   let width
   let height
+  let duration
   let ready = false
   let prepare
   function createSource(key) {
@@ -408,6 +409,7 @@ function createVideoFactory(world, url) {
               // await new Promise(resolve => setTimeout(resolve, 2000))
               width = elem.videoWidth
               height = elem.videoHeight
+              duration = elem.duration
               ready = true
               resolve()
             },
@@ -472,6 +474,9 @@ function createVideoFactory(world, url) {
       },
       get height() {
         return height
+      },
+      get duration() {
+        return duration
       },
       get loop() {
         return elem.loop

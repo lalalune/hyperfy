@@ -4,6 +4,7 @@ export { SkinnedMesh as skinnedmesh } from './SkinnedMesh.js'
 export { LOD as lod } from './LOD.js'
 export { Audio as audio } from './Audio.js'
 export { Video as video } from './Video.js'
+export { Image as image } from './Image.js'
 export { Snap as snap } from './Snap.js'
 
 export { Avatar as avatar } from './Avatar.js'

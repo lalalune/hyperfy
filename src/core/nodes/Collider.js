@@ -70,11 +70,7 @@ export class Collider extends Node {
       }
       PHYSX.destroy(scale)
     }
-    const material = this.ctx.world.physics.physics.createMaterial(
-      this._staticFriction,
-      this._dynamicFriction,
-      this._restitution
-    )
+    const material = this.ctx.world.physics.getMaterial(this._staticFriction, this._dynamicFriction, this._restitution)
     const flags = new PHYSX.PxShapeFlags()
     if (this._trigger) {
       flags.raise(PHYSX.PxShapeFlagEnum.eTRIGGER_SHAPE)
@@ -348,6 +344,11 @@ export class Collider extends Node {
     this.restitution = restitution
   }
 
+  requestRebuild() {
+    this.needsRebuild = true
+    this.setDirty()
+  }
+
   getProxy() {
     if (!this.proxy) {
       const self = this
@@ -432,6 +433,9 @@ export class Collider extends Node {
         },
         setMaterial(staticFriction, dynamicFriction, restitution) {
           self.setMaterial(staticFriction, dynamicFriction, restitution)
+        },
+        requestRebuild() {
+          self.requestRebuild()
         },
       }
       proxy = Object.defineProperties(proxy, Object.getOwnPropertyDescriptors(super.getProxy())) // inherit Node properties

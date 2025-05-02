@@ -35,6 +35,7 @@ export class App extends Entity {
     this.fields = []
     this.target = null
     this.projectLimit = Infinity
+    this.keepActive = false
     this.playerProxies = new Map()
     this.hitResultsPool = []
     this.hitResults = []
@@ -52,6 +53,13 @@ export class App extends Entity {
     const n = ++this.n
     // fetch blueprint
     const blueprint = this.world.blueprints.get(this.data.blueprint)
+
+    if (blueprint.disabled) {
+      this.unbuild()
+      this.blueprint = blueprint
+      this.building = false
+      return
+    }
 
     let root
     let script
@@ -105,12 +113,16 @@ export class App extends Entity {
     this.root = root
     this.root.position.fromArray(this.data.position)
     this.root.quaternion.fromArray(this.data.quaternion)
+    this.root.scale.fromArray(this.data.scale)
     // activate
     this.root.activate({ world: this.world, entity: this, moving: !!this.data.mover })
     // execute script
-    if (this.mode === Modes.ACTIVE && script && !crashed) {
+    const runScript =
+      (this.mode === Modes.ACTIVE && script && !crashed) || (this.mode === Modes.MOVING && this.keepActive)
+    if (runScript) {
       this.abortController = new AbortController()
       this.script = script
+      this.keepActive = false // allow script to re-enable
       try {
         this.script.exec(this.getWorldProxy(), this.getAppProxy(), this.fetch, blueprint.props, this.setTimeout)
       } catch (err) {
@@ -133,6 +145,7 @@ export class App extends Entity {
     // if remote is moving, set up to receive network updates
     this.networkPos = new LerpVector3(root.position, this.world.networkRate)
     this.networkQuat = new LerpQuaternion(root.quaternion, this.world.networkRate)
+    this.networkSca = new LerpVector3(root.scale, this.world.networkRate)
     // execute any events we collected while building
     while (this.eventQueue.length) {
       const event = this.eventQueue[0]
@@ -195,6 +208,7 @@ export class App extends Entity {
     if (this.data.mover && this.data.mover !== this.world.network.id) {
       this.networkPos.update(delta)
       this.networkQuat.update(delta)
+      this.networkSca.update(delta)
     }
     // script update()
     if (this.mode === Modes.ACTIVE && this.script) {
@@ -251,7 +265,19 @@ export class App extends Entity {
     }
     if (data.hasOwnProperty('quaternion')) {
       this.data.quaternion = data.quaternion
-      this.networkQuat.pushArray(data.quaternion)
+      if (this.data.mover) {
+        this.networkQuat.pushArray(data.quaternion)
+      } else {
+        rebuild = true
+      }
+    }
+    if (data.hasOwnProperty('scale')) {
+      this.data.scale = data.scale
+      if (this.data.mover) {
+        this.networkSca.pushArray(data.scale)
+      } else {
+        rebuild = true
+      }
     }
     if (data.hasOwnProperty('pinned')) {
       this.data.pinned = data.pinned

@@ -103,7 +103,7 @@ export class ClientAudio extends System {
     if (this.listener.positionX) {
       // https://github.com/mrdoob/three.js/blob/master/src/audio/AudioListener.js
       // code path for Chrome (see three#14393)
-      const endTime = this.ctx.currentTime + delta
+      const endTime = this.ctx.currentTime + delta * 2
       this.listener.positionX.linearRampToValueAtTime(target.position.x, endTime)
       this.listener.positionY.linearRampToValueAtTime(target.position.y, endTime)
       this.listener.positionZ.linearRampToValueAtTime(target.position.z, endTime)
@@ -117,7 +117,7 @@ export class ClientAudio extends System {
       this.listener.setPosition(target.position.x, target.position.y, target.position.z)
       this.listener.setOrientation(dir.x, dir.y, dir.z, up.x, up.y, up.z)
     }
-    this.lastDelta = delta
+    this.lastDelta = delta * 2
   }
 
   onPrefsChange = changes => {

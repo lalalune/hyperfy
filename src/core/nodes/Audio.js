@@ -393,6 +393,12 @@ export class Audio extends Node {
     }
   }
 
+  setPlaybackRate(rate) {
+    const audio = this.ctx.world.audio
+    const endTime = audio.ctx.currentTime + audio.lastDelta
+    this.source?.playbackRate.linearRampToValueAtTime(rate, endTime)
+  }
+
   getProxy() {
     var self = this
     if (!this.proxy) {
@@ -486,6 +492,9 @@ export class Audio extends Node {
         },
         stop() {
           self.stop()
+        },
+        setPlaybackRate(rate) {
+          self.setPlaybackRate(rate)
         },
       }
       proxy = Object.defineProperties(proxy, Object.getOwnPropertyDescriptors(super.getProxy())) // inherit Node properties

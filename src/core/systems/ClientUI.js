@@ -1,15 +1,18 @@
-import { isBoolean } from 'lodash-es'
 import { ControlPriorities } from '../extras/ControlPriorities'
 import { System } from './System'
 
-let keys = 0
+const appPanes = ['app', 'script', 'nodes', 'meta']
 
 export class ClientUI extends System {
   constructor(world) {
     super(world)
-    this.visible = true
-    this.menu = null
-    this.apps = false
+    this.state = {
+      visible: true,
+      active: false,
+      app: null,
+      pane: null,
+    }
+    this.lastAppPane = 'app'
     this.control = null
   }
 
@@ -19,12 +22,12 @@ export class ClientUI extends System {
 
   update() {
     if (this.control.escape.pressed) {
-      if (this.apps) {
-        this.toggleApps(false)
-      } else if (this.menu) {
-        this.setMenu(null)
-      } else {
-        this.setMenu({ type: 'main' })
+      if (this.state.pane) {
+        this.state.pane = null
+        this.broadcast()
+      } else if (this.state.app) {
+        this.state.app = null
+        this.broadcast()
       }
     }
     if (
@@ -33,52 +36,41 @@ export class ClientUI extends System {
       !this.control.controlLeft.down &&
       !this.control.shiftLeft.down
     ) {
-      this.toggleUI()
+      this.state.visible = !this.state.visible
+      this.broadcast()
     }
-    if (this.control.pointer.locked) {
-      if (this.menu?.type === 'main') {
-        this.setMenu(null)
-      }
+    if (this.control.pointer.locked && this.state.active) {
+      this.state.active = false
+      this.broadcast()
     }
-    if (this.control.pointer.locked) {
-      if (this.menu?.type === 'app' && !this.menu.blur) {
-        this.setMenu({ ...this.menu, blur: true })
-      }
+    if (!this.control.pointer.locked && !this.state.active) {
+      this.state.active = true
+      this.broadcast()
+    }
+  }
+
+  togglePane(pane) {
+    if (pane === null || this.state.pane === pane) {
+      this.state.pane = null
     } else {
-      if (this.menu?.type === 'app' && this.menu.blur) {
-        this.setMenu({ ...this.menu, blur: false })
+      // if (appPanes.includes(this.state.pane) && !appPanes.includes(pane)) {
+      //   this.state.app = null
+      // }
+      this.state.pane = pane
+      if (appPanes.includes(pane)) {
+        this.lastAppPane = pane
       }
     }
+    this.broadcast()
   }
 
-  setMenu(opts) {
-    this.menu = opts
-    this.world.emit('menu', this.menu)
+  setApp(app) {
+    this.state.app = app
+    this.state.pane = app ? this.lastAppPane : null
+    this.broadcast()
   }
 
-  toggleMain() {
-    if (this.menu?.type === 'main') {
-      this.setMenu(null)
-    } else {
-      this.setMenu({ type: 'main' })
-    }
-  }
-
-  toggleCode = value => {
-    value = isBoolean(value) ? value : !this.code
-    this.code = value
-    this.world.emit('code', this.code)
-  }
-
-  toggleUI() {
-    this.visible = !this.visible
-    this.world.emit('ui', this.visible)
-  }
-
-  toggleApps(value) {
-    value = isBoolean(value) ? value : !this.apps
-    if (this.apps === value) return
-    this.apps = value
-    this.world.emit('apps', this.apps)
+  broadcast() {
+    this.world.emit('ui', { ...this.state })
   }
 }

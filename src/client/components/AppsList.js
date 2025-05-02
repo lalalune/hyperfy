@@ -2,7 +2,6 @@ import { css } from '@firebolt-dev/css'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   BoxIcon,
-  BrickWall,
   BrickWallIcon,
   CrosshairIcon,
   EyeIcon,
@@ -10,99 +9,24 @@ import {
   FileCode2Icon,
   HardDriveIcon,
   HashIcon,
-  LayoutGridIcon,
-  PencilIcon,
-  RotateCcwIcon,
-  SearchIcon,
+  OctagonXIcon,
+  Rows3Icon,
   SettingsIcon,
-  TargetIcon,
   TriangleIcon,
-  XIcon,
-  ZapIcon,
 } from 'lucide-react'
 
-import { usePane } from './usePane'
 import { cls } from './cls'
 import { orderBy } from 'lodash-es'
 import { formatBytes } from '../../core/extras/formatBytes'
 
-export function AppsPane({ world, close }) {
-  const paneRef = useRef()
-  const headRef = useRef()
-  usePane('apps', paneRef, headRef)
-  const [query, setQuery] = useState('')
-  const [refresh, setRefresh] = useState(0)
-  return (
-    <div
-      ref={paneRef}
-      className='apane'
-      css={css`
-        position: absolute;
-        top: 20px;
-        left: 20px;
-        width: 38rem;
-        background-color: rgba(15, 16, 24, 0.8);
-        pointer-events: auto;
-        display: flex;
-        flex-direction: column;
-        font-size: 1rem;
-        .apane-head {
-          height: 3.125rem;
-          background: black;
-          display: flex;
-          align-items: center;
-          padding: 0 0.8125rem 0 1.25rem;
-          &-title {
-            font-size: 1.2rem;
-            font-weight: 500;
-            flex: 1;
-          }
-          &-search {
-            width: 9.375rem;
-            display: flex;
-            align-items: center;
-            svg {
-              margin-right: 0.3125rem;
-            }
-            input {
-              flex: 1;
-              font-size: 1rem;
-            }
-          }
-          &-btn {
-            width: 1.875rem;
-            height: 2.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: rgba(255, 255, 255, 0.5);
-            &:hover {
-              cursor: pointer;
-              color: white;
-            }
-          }
-        }
-      `}
-    >
-      <div className='apane-head' ref={headRef}>
-        <div className='apane-head-title'>Apps</div>
-        <div className='apane-head-search'>
-          <SearchIcon size={16} />
-          <input type='text' placeholder='Search' value={query} onChange={e => setQuery(e.target.value)} />
-        </div>
-        <div className='apane-head-btn' onClick={() => setRefresh(n => n + 1)}>
-          <RotateCcwIcon size={16} />
-        </div>
-        <div className='apane-head-btn' onClick={close}>
-          <XIcon size={20} />
-        </div>
-      </div>
-      <AppsPaneContent world={world} query={query} refresh={refresh} setRefresh={setRefresh} />
-    </div>
-  )
+const defaultStats = {
+  geometries: 0,
+  triangles: 0,
+  textureBytes: 0,
+  fileBytes: 0,
 }
 
-function AppsPaneContent({ world, query, refresh, setRefresh }) {
+export function AppsList({ world, query, perf, refresh, setRefresh }) {
   const [sort, setSort] = useState('count')
   const [asc, setAsc] = useState(false)
   const [target, setTarget] = useState(null)
@@ -111,15 +35,15 @@ function AppsPaneContent({ world, query, refresh, setRefresh }) {
     let items = []
     for (const [_, entity] of world.entities.items) {
       if (!entity.isApp) continue
-      const blueprint = entity.blueprint
+      const blueprint = world.blueprints.get(entity.data.blueprint)
       if (!blueprint) continue // still loading?
+      if (!blueprint.model) continue // corrupt app?
       let item = itemMap.get(blueprint.id)
       if (!item) {
         let count = 0
         const type = blueprint.model.endsWith('.vrm') ? 'avatar' : 'model'
         const model = world.loader.get(type, blueprint.model)
-        if (!model) continue
-        const stats = model.getStats()
+        const stats = model?.getStats() || defaultStats
         const name = blueprint.name || '-'
         item = {
           blueprint,
@@ -205,18 +129,19 @@ function AppsPaneContent({ world, query, refresh, setRefresh }) {
   }
   return (
     <div
-      className='asettings'
+      className={cls('appslist', { hideperf: !perf })}
       css={css`
         flex: 1;
-        padding: 1.25rem 1.25rem 0;
-        .asettings-head {
+        .appslist-head {
           position: sticky;
           top: 0;
           display: flex;
           align-items: center;
+          padding: 0.6rem 1rem;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
           margin: 0 0 0.3125rem;
         }
-        .asettings-headitem {
+        .appslist-headitem {
           font-size: 1rem;
           font-weight: 500;
           white-space: nowrap;
@@ -241,8 +166,10 @@ function AppsPaneContent({ world, query, refresh, setRefresh }) {
             text-align: right;
           }
           &.actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
             width: 5.45rem;
-            text-align: right;
           }
           &:hover:not(.active) {
             cursor: pointer;
@@ -251,17 +178,21 @@ function AppsPaneContent({ world, query, refresh, setRefresh }) {
             color: #4088ff;
           }
         }
-        .asettings-rows {
-          overflow-y: auto;
+        .appslist-rows {
+          /* overflow-y: auto;
           padding-bottom: 1.25rem;
-          max-height: 18.75rem;
+          max-height: 18.75rem; */
         }
-        .asettings-row {
+        .appslist-row {
           display: flex;
           align-items: center;
-          margin: 0 0 0.3125rem;
+          padding: 0.6rem 1rem;
+          &:hover {
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.03);
+          }
         }
-        .asettings-rowitem {
+        .appslist-rowitem {
           font-size: 1rem;
           color: rgba(255, 255, 255, 0.8);
           white-space: nowrap;
@@ -291,109 +222,115 @@ function AppsPaneContent({ world, query, refresh, setRefresh }) {
             justify-content: flex-end;
           }
         }
-        .asettings-action {
+        .appslist-action {
           margin-left: 0.625rem;
-          color: rgba(255, 255, 255, 0.4);
+          color: #5d6077;
           &.active {
-            color: #4088ff;
-          }
-          &.red {
-            color: #fb4848;
+            color: white;
           }
           &:hover {
             cursor: pointer;
           }
-          &:hover:not(.active):not(.red) {
-            color: white;
+        }
+        &.hideperf {
+          .appslist-head {
+            display: none;
+          }
+          .appslist-rowitem {
+            &.count,
+            &.code,
+            &.geometries,
+            &.triangles,
+            &.textureSize,
+            &.fileSize {
+              display: none;
+            }
           }
         }
       `}
     >
-      <div className='asettings-head'>
+      <div className='appslist-head'>
         <div
-          className={cls('asettings-headitem name', { active: sort === 'name' })}
+          className={cls('appslist-headitem name', { active: sort === 'name' })}
           onClick={() => reorder('name')}
           title='Name'
         >
-          <span>Name</span>
+          <span></span>
         </div>
         <div
-          className={cls('asettings-headitem count', { active: sort === 'count' })}
+          className={cls('appslist-headitem count', { active: sort === 'count' })}
           onClick={() => reorder('count')}
           title='Instances'
         >
-          <HashIcon size={16} />
+          <HashIcon size='1.125rem' />
         </div>
         <div
-          className={cls('asettings-headitem geometries', { active: sort === 'geometries' })}
+          className={cls('appslist-headitem geometries', { active: sort === 'geometries' })}
           onClick={() => reorder('geometries')}
           title='Geometries'
         >
-          <BoxIcon size={16} />
+          <BoxIcon size='1.125rem' />
         </div>
         <div
-          className={cls('asettings-headitem triangles', { active: sort === 'triangles' })}
+          className={cls('appslist-headitem triangles', { active: sort === 'triangles' })}
           onClick={() => reorder('triangles')}
           title='Triangles'
         >
-          <TriangleIcon size={16} />
+          <TriangleIcon size='1.125rem' />
         </div>
         <div
-          className={cls('asettings-headitem textureSize', { active: sort === 'textureBytes' })}
+          className={cls('appslist-headitem textureSize', { active: sort === 'textureBytes' })}
           onClick={() => reorder('textureBytes')}
           title='Texture Memory Size'
         >
-          <BrickWallIcon size={16} />
+          <BrickWallIcon size='1.125rem' />
         </div>
         <div
-          className={cls('asettings-headitem code', { active: sort === 'code' })}
+          className={cls('appslist-headitem code', { active: sort === 'code' })}
           onClick={() => reorder('code')}
           title='Code'
         >
-          <FileCode2Icon size={16} />
+          <FileCode2Icon size='1.125rem' />
         </div>
         <div
-          className={cls('asettings-headitem fileSize', { active: sort === 'fileBytes' })}
+          className={cls('appslist-headitem fileSize', { active: sort === 'fileBytes' })}
           onClick={() => reorder('fileBytes')}
           title='File Size'
         >
           <HardDriveIcon size={16} />
         </div>
-        <div className='asettings-headitem actions' />
+        <div className='appslist-headitem actions' />
       </div>
-      <div className='asettings-rows noscrollbar'>
+      <div className='appslist-rows'>
         {items.map(item => (
-          <div key={item.blueprint.id} className='asettings-row'>
-            <div className='asettings-rowitem name' onClick={() => target(item)}>
+          <div key={item.blueprint.id} className='appslist-row'>
+            <div className='appslist-rowitem name' onClick={() => inspect(item)}>
               <span>{item.name}</span>
             </div>
-            <div className='asettings-rowitem count'>
+            <div className='appslist-rowitem count'>
               <span>{item.count}</span>
             </div>
-            <div className='asettings-rowitem geometries'>
+            <div className='appslist-rowitem geometries'>
               <span>{item.geometries}</span>
             </div>
-            <div className='asettings-rowitem triangles'>
+            <div className='appslist-rowitem triangles'>
               <span>{formatNumber(item.triangles)}</span>
             </div>
-            <div className='asettings-rowitem textureSize'>
+            <div className='appslist-rowitem textureSize'>
               <span>{item.textureSize}</span>
             </div>
-            <div className='asettings-rowitem code'>
+            <div className='appslist-rowitem code'>
               <span>{item.code ? 'Yes' : 'No'}</span>
             </div>
-            <div className='asettings-rowitem fileSize'>
+            <div className='appslist-rowitem fileSize'>
               <span>{item.fileSize}</span>
             </div>
-            <div className={'asettings-rowitem actions'}>
-              <div className={cls('asettings-action', { red: item.blueprint.disabled })} onClick={() => toggle(item)}>
-                {item.blueprint.disabled ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+            <div className={'appslist-rowitem actions'}>
+              <div className={cls('appslist-action', { active: item.blueprint.disabled })} onClick={() => toggle(item)}>
+                <OctagonXIcon size='1rem' />
               </div>
-              <div className={cls('asettings-action', { active: target === item })} onClick={() => toggleTarget(item)}>
-                <CrosshairIcon size={16} />
-              </div>
-              <div className={'asettings-action'} onClick={() => inspect(item)}>
-                <SettingsIcon size={16} />
+              <div className={cls('appslist-action', { active: target === item })} onClick={() => toggleTarget(item)}>
+                <CrosshairIcon size='1rem' />
               </div>
             </div>
           </div>

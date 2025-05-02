@@ -14,6 +14,7 @@ export class ClientLiveKit extends System {
     super(world)
     this.room = null
     this.status = {
+      available: false,
       connected: false,
       mic: false,
       screenshare: null,
@@ -25,6 +26,7 @@ export class ClientLiveKit extends System {
 
   async deserialize(opts) {
     if (!opts) return
+    this.status.available = true
     // console.log(opts)
     this.room = new Room({
       webAudioMix: {
@@ -270,6 +272,7 @@ function createPlayerScreen({ world, playerId, targetId, track, participant }) {
   texture.minFilter = THREE.LinearFilter
   texture.magFilter = THREE.LinearFilter
   texture.anisotropy = world.graphics.maxAnisotropy
+  texture.needsUpdate = true
   let width
   let height
   let ready = false

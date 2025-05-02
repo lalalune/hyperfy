@@ -1,9 +1,9 @@
 import { css } from '@firebolt-dev/css'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { LoaderIcon } from 'lucide-react'
+import { LoaderIcon, MessageSquareTextIcon } from 'lucide-react'
 import moment from 'moment'
 
-import { CodeEditor } from './CodeEditor'
+// import { CodeEditor } from './CodeEditor'
 import { AvatarPane } from './AvatarPane'
 import { useElemSize } from './useElemSize'
 import { MouseLeftIcon } from './MouseLeftIcon'
@@ -13,21 +13,11 @@ import { buttons, propToLabel } from '../../core/extras/buttons'
 import { cls, isTouch } from '../utils'
 import { uuid } from '../../core/utils'
 import { ControlPriorities } from '../../core/extras/ControlPriorities'
-import { AppsPane } from './AppsPane'
-import { MenuMain } from './MenuMain'
-import { MenuApp } from './MenuApp'
-import {
-  ChatIcon,
-  ChevronDoubleUpIcon,
-  CircleUpIcon,
-  HandIcon,
-  KeyboardIcon,
-  MenuIcon,
-  MicIcon,
-  MicOffIcon,
-  SettingsIcon,
-  VRIcon,
-} from './Icons'
+// import { AppsPane } from './AppsPane'
+// import { MenuMain } from './MenuMain'
+// import { MenuApp } from './MenuApp'
+import { ChevronDoubleUpIcon, HandIcon } from './Icons'
+import { Sidebar } from './Sidebar'
 
 export function CoreUI({ world }) {
   const [ref, width, height] = useElemSize()
@@ -50,7 +40,7 @@ function Content({ world, width, height }) {
   const small = width < 600
   const [ready, setReady] = useState(false)
   const [player, setPlayer] = useState(() => world.entities.player)
-  const [visible, setVisible] = useState(world.ui.visible)
+  const [ui, setUI] = useState(world.ui.state)
   const [menu, setMenu] = useState(null)
   const [code, setCode] = useState(false)
   const [avatar, setAvatar] = useState(null)
@@ -60,7 +50,7 @@ function Content({ world, width, height }) {
   useEffect(() => {
     world.on('ready', setReady)
     world.on('player', setPlayer)
-    world.on('ui', setVisible)
+    world.on('ui', setUI)
     world.on('menu', setMenu)
     world.on('code', setCode)
     world.on('apps', setApps)
@@ -70,7 +60,7 @@ function Content({ world, width, height }) {
     return () => {
       world.off('ready', setReady)
       world.off('player', setPlayer)
-      world.off('ui', setVisible)
+      world.off('ui', setUI)
       world.off('menu', setMenu)
       world.off('code', setCode)
       world.off('apps', setApps)
@@ -113,74 +103,285 @@ function Content({ world, width, height }) {
       css={css`
         position: absolute;
         inset: 0;
-        display: ${visible ? 'block' : 'none'};
+        display: ${ui.visible ? 'block' : 'none'};
       `}
     >
       {disconnected && <Disconnected />}
       <Reticle world={world} />
       {<Toast world={world} />}
-      {ready && <Side world={world} player={player} menu={menu} />}
-      {ready && menu?.type === 'app' && code && (
+      {ready && <ActionsBlock world={world} />}
+      {ready && <Sidebar world={world} ui={ui} />}
+      {ready && <Chat world={world} />}
+      {/* {ready && <Side world={world} player={player} menu={menu} />} */}
+      {/* {ready && menu?.type === 'app' && code && (
         <CodeEditor key={`code-${menu.app.data.id}`} world={world} app={menu.app} blur={menu.blur} />
-      )}
+      )} */}
       {avatar && <AvatarPane key={avatar.hash} world={world} info={avatar} />}
-      {apps && <AppsPane world={world} close={() => world.ui.toggleApps()} />}
+      {/* {apps && <AppsPane world={world} close={() => world.ui.toggleApps()} />} */}
       {!ready && <LoadingOverlay />}
       {kicked && <KickedOverlay code={kicked} />}
       {ready && isTouch && <TouchBtns world={world} />}
+      <div id='core-ui-portal' />
     </div>
   )
 }
 
-function Side({ world, menu }) {
+// function Side({ world, menu }) {
+//   const inputRef = useRef()
+//   const [msg, setMsg] = useState('')
+//   const [chat, setChat] = useState(false)
+//   const [livekit, setLiveKit] = useState(() => world.livekit.status)
+//   const [actions, setActions] = useState(() => world.prefs.actions)
+//   useEffect(() => {
+//     const onPrefsChange = changes => {
+//       if (changes.actions) setActions(changes.actions.value)
+//     }
+//     const onLiveKitStatus = status => {
+//       setLiveKit({ ...status })
+//     }
+//     world.livekit.on('status', onLiveKitStatus)
+//     world.prefs.on('change', onPrefsChange)
+//     return () => {
+//       world.prefs.off('change', onPrefsChange)
+//       world.livekit.off('status', onLiveKitStatus)
+//     }
+//   }, [])
+//   useEffect(() => {
+//     const control = world.controls.bind({ priority: ControlPriorities.CORE_UI })
+//     control.slash.onPress = () => {
+//       if (!chat) setChat(true)
+//     }
+//     control.enter.onPress = () => {
+//       if (!chat) setChat(true)
+//     }
+//     control.mouseLeft.onPress = () => {
+//       if (control.pointer.locked && chat) {
+//         setChat(false)
+//       }
+//     }
+//     return () => control.release()
+//   }, [chat])
+//   useEffect(() => {
+//     if (chat) {
+//       inputRef.current.focus()
+//     } else {
+//       inputRef.current.blur()
+//     }
+//   }, [chat])
+//   const send = async e => {
+//     if (world.controls.pointer.locked) {
+//       setTimeout(() => setChat(false), 10)
+//     }
+//     if (!msg) {
+//       e.preventDefault()
+//       return setChat(false)
+//     }
+//     setMsg('')
+//     // check for commands
+//     if (msg.startsWith('/')) {
+//       world.chat.command(msg)
+//       return
+//     }
+//     // otherwise post it
+//     const player = world.entities.player
+//     const data = {
+//       id: uuid(),
+//       from: player.data.name,
+//       fromId: player.data.id,
+//       body: msg,
+//       createdAt: moment().toISOString(),
+//     }
+//     world.chat.add(data, true)
+//     if (isTouch) {
+//       e.target.blur()
+//       // setTimeout(() => setChat(false), 10)
+//     }
+//   }
+//   return (
+//     <div
+//       className='side'
+//       css={css`
+//         position: absolute;
+//         top: calc(4rem + env(safe-area-inset-top));
+//         left: calc(4rem + env(safe-area-inset-left));
+//         bottom: calc(4rem + env(safe-area-inset-bottom));
+//         right: calc(4rem + env(safe-area-inset-right));
+//         display: flex;
+//         align-items: stretch;
+//         font-size: 1rem;
+//         .side-content {
+//           max-width: 21rem;
+//           width: 100%;
+//           display: flex;
+//           flex-direction: column;
+//           align-items: stretch;
+//         }
+//         .side-btns {
+//           display: flex;
+//           align-items: center;
+//           margin-left: -0.5rem;
+//         }
+//         .side-btn {
+//           pointer-events: auto;
+//           /* margin-bottom: 1rem; */
+//           width: 2.5rem;
+//           height: 2.5rem;
+//           display: flex;
+//           align-items: center;
+//           justify-content: center;
+//           cursor: pointer;
+//           svg {
+//             filter: drop-shadow(0 0.0625rem 0.125rem rgba(0, 0, 0, 0.2));
+//           }
+//         }
+//         .side-mid {
+//           flex: 1;
+//           display: flex;
+//           flex-direction: column;
+//           justify-content: center;
+//         }
+//         .side-chatbox {
+//           margin-top: 0.5rem;
+//           background: rgba(0, 0, 0, 0.3);
+//           padding: 0.625rem;
+//           display: flex;
+//           align-items: center;
+//           opacity: 0;
+//           &.active {
+//             opacity: 1;
+//             pointer-events: auto;
+//           }
+//           &-input {
+//             flex: 1;
+//             /* paint-order: stroke fill; */
+//             /* -webkit-text-stroke: 0.25rem rgba(0, 0, 0, 0.2); */
+//             &::placeholder {
+//               color: rgba(255, 255, 255, 0.5);
+//             }
+//           }
+//         }
+//         @media all and (max-width: 700px), (max-height: 700px) {
+//           top: calc(1.5rem + env(safe-area-inset-top));
+//           left: calc(1.5rem + env(safe-area-inset-left));
+//           bottom: calc(1.5rem + env(safe-area-inset-bottom));
+//           right: calc(1.5rem + env(safe-area-inset-right));
+//         }
+//       `}
+//     >
+//       <div className='side-content'>
+//         <div className='side-btns'>
+//           <div className='side-btn' onClick={() => world.ui.toggleMain()}>
+//             <MenuIcon size='1.5rem' />
+//           </div>
+//           {isTouch && (
+//             <div
+//               className='side-btn'
+//               onClick={() => {
+//                 console.log('setChat', !chat)
+//                 setChat(!chat)
+//               }}
+//             >
+//               <ChatIcon size='1.5rem' />
+//             </div>
+//           )}
+//           {livekit.connected && (
+//             <div
+//               className='side-btn'
+//               onClick={() => {
+//                 world.livekit.setMicrophoneEnabled()
+//               }}
+//             >
+//               {livekit.mic ? <MicIcon size='1.5rem' /> : <MicOffIcon size='1.5rem' />}
+//             </div>
+//           )}
+//           {world.xr.supportsVR && (
+//             <div
+//               className='side-btn'
+//               onClick={() => {
+//                 world.xr.enter()
+//               }}
+//             >
+//               <VRIcon size='1.5rem' />
+//             </div>
+//           )}
+//         </div>
+//         {menu?.type === 'main' && <MenuMain world={world} />}
+//         {menu?.type === 'app' && <MenuApp key={menu.app.data.id} world={world} app={menu.app} blur={menu.blur} />}
+//         <div className='side-mid'>{!menu && !isTouch && actions && <Actions world={world} />}</div>
+//         {isTouch && !chat && <MiniMessages world={world} />}
+//         {(isTouch ? chat : true) && <Messages world={world} active={chat || menu} />}
+//         <label className={cls('side-chatbox', { active: chat })}>
+//           <input
+//             ref={inputRef}
+//             className='side-chatbox-input'
+//             type='text'
+//             placeholder='Say something...'
+//             value={msg}
+//             onChange={e => setMsg(e.target.value)}
+//             onKeyDown={e => {
+//               if (e.code === 'Escape') {
+//                 setChat(false)
+//               }
+//               // meta quest 3 isn't spec complaint and instead has e.code = '' and e.key = 'Enter'
+//               // spec says e.code should be a key code and e.key should be the text output of the key eg 'b', 'B', and '\n'
+//               if (e.code === 'Enter' || e.key === 'Enter') {
+//                 send(e)
+//               }
+//             }}
+//             onBlur={e => {
+//               if (!isTouch) {
+//                 setChat(false)
+//               }
+//             }}
+//           />
+//         </label>
+//       </div>
+//     </div>
+//   )
+// }
+
+function Chat({ world }) {
   const inputRef = useRef()
   const [msg, setMsg] = useState('')
-  const [chat, setChat] = useState(false)
-  const [livekit, setLiveKit] = useState(() => world.livekit.status)
-  const [actions, setActions] = useState(() => world.prefs.actions)
+  const [active, setActive] = useState(false)
   useEffect(() => {
-    const onPrefsChange = changes => {
-      if (changes.actions) setActions(changes.actions.value)
+    const onToggle = () => {
+      setActive(!active)
     }
-    const onLiveKitStatus = status => {
-      setLiveKit({ ...status })
-    }
-    world.livekit.on('status', onLiveKitStatus)
-    world.prefs.on('change', onPrefsChange)
+    world.on('sidebar-chat-toggle', onToggle)
     return () => {
-      world.prefs.off('change', onPrefsChange)
-      world.livekit.off('status', onLiveKitStatus)
+      world.off('sidebar-chat-toggle', onToggle)
     }
   }, [])
   useEffect(() => {
     const control = world.controls.bind({ priority: ControlPriorities.CORE_UI })
     control.slash.onPress = () => {
-      if (!chat) setChat(true)
+      if (!active) setActive(true)
     }
     control.enter.onPress = () => {
-      if (!chat) setChat(true)
+      if (!active) setActive(true)
     }
     control.mouseLeft.onPress = () => {
-      if (control.pointer.locked && chat) {
-        setChat(false)
+      if (control.pointer.locked && active) {
+        setActive(false)
       }
     }
     return () => control.release()
-  }, [chat])
+  }, [active])
   useEffect(() => {
-    if (chat) {
+    if (active) {
       inputRef.current.focus()
     } else {
       inputRef.current.blur()
     }
-  }, [chat])
+  }, [active])
   const send = async e => {
     if (world.controls.pointer.locked) {
-      setTimeout(() => setChat(false), 10)
+      setTimeout(() => setActive(false), 10)
     }
     if (!msg) {
       e.preventDefault()
-      return setChat(false)
+      return setActive(false)
     }
     setMsg('')
     // check for commands
@@ -199,149 +400,110 @@ function Side({ world, menu }) {
     }
     world.chat.add(data, true)
     if (isTouch) {
+      // setActive(false)
       e.target.blur()
-      // setTimeout(() => setChat(false), 10)
+      setTimeout(() => setActive(false), 10)
     }
   }
   return (
     <div
-      className='side'
+      className={cls('mainchat', { active })}
       css={css`
         position: absolute;
-        top: calc(4rem + env(safe-area-inset-top));
-        left: calc(4rem + env(safe-area-inset-left));
-        bottom: calc(4rem + env(safe-area-inset-bottom));
-        right: calc(4rem + env(safe-area-inset-right));
-        display: flex;
-        align-items: stretch;
+        left: calc(2rem + env(safe-area-inset-left));
+        bottom: calc(2rem + env(safe-area-inset-bottom));
+        width: 20rem;
         font-size: 1rem;
-        .side-content {
-          max-width: 21rem;
-          width: 100%;
-          display: flex;
-          flex-direction: column;
-          align-items: stretch;
+        @media all and (max-width: 1200px) {
+          left: calc(1rem + env(safe-area-inset-left));
+          bottom: calc(1rem + env(safe-area-inset-bottom));
         }
-        .side-btns {
-          display: flex;
-          align-items: center;
-          margin-left: -0.5rem;
+        .mainchat-msgs {
+          padding: 0 0 0.5rem 0.4rem;
         }
-        .side-btn {
+        .mainchat-btn {
           pointer-events: auto;
-          /* margin-bottom: 1rem; */
-          width: 2.5rem;
-          height: 2.5rem;
+          width: 2.875rem;
+          height: 2.875rem;
           display: flex;
           align-items: center;
           justify-content: center;
-          cursor: pointer;
-          svg {
-            filter: drop-shadow(0 0.0625rem 0.125rem rgba(0, 0, 0, 0.2));
+          background: rgba(11, 10, 21, 0.85);
+          border: 0.0625rem solid #2a2b39;
+          border-radius: 1rem;
+          &:hover {
+            cursor: pointer;
           }
+          opacity: 0; // disabled
         }
-        .side-mid {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-        }
-        .side-chatbox {
-          margin-top: 0.5rem;
-          background: rgba(0, 0, 0, 0.3);
-          padding: 0.625rem;
+        .mainchat-entry {
+          height: 2.875rem;
+          padding: 0 0.8rem;
+          background: rgba(11, 10, 21, 0.85);
+          border: 0.0625rem solid #2a2b39;
+          border-radius: 1rem;
+          backdrop-filter: blur(5px);
           display: flex;
           align-items: center;
-          opacity: 0;
-          &.active {
-            opacity: 1;
-            pointer-events: auto;
-          }
-          &-input {
-            flex: 1;
-            /* paint-order: stroke fill; */
-            /* -webkit-text-stroke: 0.25rem rgba(0, 0, 0, 0.2); */
-            &::placeholder {
-              color: rgba(255, 255, 255, 0.5);
-            }
+
+          // debug
+          display: none;
+          /* pointer-events: auto;
+          opacity: 1; */
+
+          input {
+            font-size: 0.9375rem;
+            line-height: 1;
           }
         }
-        @media all and (max-width: 700px), (max-height: 700px) {
-          top: calc(1.5rem + env(safe-area-inset-top));
-          left: calc(1.5rem + env(safe-area-inset-left));
-          bottom: calc(1.5rem + env(safe-area-inset-bottom));
-          right: calc(1.5rem + env(safe-area-inset-right));
+        &.active {
+          pointer-events: auto;
+          .mainchat-btn {
+            display: none;
+          }
+          .mainchat-entry {
+            display: flex;
+          }
         }
       `}
     >
-      <div className='side-content'>
-        <div className='side-btns'>
-          <div className='side-btn' onClick={() => world.ui.toggleMain()}>
-            <MenuIcon size='1.5rem' />
-          </div>
-          {isTouch && (
-            <div
-              className='side-btn'
-              onClick={() => {
-                console.log('setChat', !chat)
-                setChat(!chat)
-              }}
-            >
-              <ChatIcon size='1.5rem' />
-            </div>
-          )}
-          {livekit.connected && (
-            <div
-              className='side-btn'
-              onClick={() => {
-                world.livekit.setMicrophoneEnabled()
-              }}
-            >
-              {livekit.mic ? <MicIcon size='1.5rem' /> : <MicOffIcon size='1.5rem' />}
-            </div>
-          )}
-          {world.xr.supportsVR && (
-            <div
-              className='side-btn'
-              onClick={() => {
-                world.xr.enter()
-              }}
-            >
-              <VRIcon size='1.5rem' />
-            </div>
-          )}
-        </div>
-        {menu?.type === 'main' && <MenuMain world={world} />}
-        {menu?.type === 'app' && <MenuApp key={menu.app.data.id} world={world} app={menu.app} blur={menu.blur} />}
-        {isTouch && !chat && <MiniMessages world={world} />}
-        <div className='side-mid'>{!menu && !isTouch && actions && <Actions world={world} />}</div>
-        {(isTouch ? chat : true) && <Messages world={world} active={chat || menu} />}
-        <label className={cls('side-chatbox', { active: chat })}>
-          <input
-            ref={inputRef}
-            className='side-chatbox-input'
-            type='text'
-            placeholder='Say something...'
-            value={msg}
-            onChange={e => setMsg(e.target.value)}
-            onKeyDown={e => {
-              if (e.code === 'Escape') {
-                setChat(false)
-              }
-              // meta quest 3 isn't spec complaint and instead has e.code = '' and e.key = 'Enter'
-              // spec says e.code should be a key code and e.key should be the text output of the key eg 'b', 'B', and '\n'
-              if (e.code === 'Enter' || e.key === 'Enter') {
-                send(e)
-              }
-            }}
-            onBlur={e => {
-              if (!isTouch) {
-                setChat(false)
-              }
-            }}
-          />
-        </label>
+      <div className='mainchat-msgs'>
+        {isTouch && !active && <MiniMessages world={world} />}
+        {(!isTouch || active) && <Messages world={world} active={active} />}
       </div>
+      <div
+        className='mainchat-btn'
+        onClick={() => {
+          setActive(true)
+        }}
+      >
+        <MessageSquareTextIcon size='1.125rem' />
+      </div>
+      <label className='mainchat-entry'>
+        <input
+          ref={inputRef}
+          className='side-chatbox-input'
+          type='text'
+          placeholder='Say something...'
+          value={msg}
+          onChange={e => setMsg(e.target.value)}
+          onKeyDown={e => {
+            if (e.code === 'Escape') {
+              setActive(false)
+            }
+            // meta quest 3 isn't spec complaint and instead has e.code = '' and e.key = 'Enter'
+            // spec says e.code should be a key code and e.key should be the text output of the key eg 'b', 'B', and '\n'
+            if (e.code === 'Enter' || e.key === 'Enter') {
+              send(e)
+            }
+          }}
+          onBlur={e => {
+            if (!isTouch) {
+              setActive(false)
+            }
+          }}
+        />
+      </label>
     </div>
   )
 }
@@ -585,13 +747,47 @@ function KickedOverlay({ code }) {
   )
 }
 
+function ActionsBlock({ world }) {
+  const [showActions, setShowActions] = useState(() => world.prefs.actions)
+  useEffect(() => {
+    const onPrefsChange = changes => {
+      if (changes.actions) setShowActions(changes.actions.value)
+    }
+    world.prefs.on('change', onPrefsChange)
+    return () => {
+      world.prefs.off('change', onPrefsChange)
+    }
+  }, [])
+  if (isTouch) return null
+  if (!showActions) return null
+  return (
+    <div
+      css={css`
+        position: absolute;
+        top: calc(2rem + env(safe-area-inset-top));
+        left: calc(2rem + env(safe-area-inset-left));
+        bottom: calc(2rem + env(safe-area-inset-bottom));
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        @media all and (max-width: 1200px) {
+          top: calc(1rem + env(safe-area-inset-top));
+          left: calc(1rem + env(safe-area-inset-left));
+          bottom: calc(1rem + env(safe-area-inset-bottom));
+        }
+      `}
+    >
+      <Actions world={world} />
+    </div>
+  )
+}
+
 function Actions({ world }) {
   const [actions, setActions] = useState(() => world.controls.actions)
   useEffect(() => {
     world.on('actions', setActions)
     return () => world.off('actions', setActions)
   }, [])
-
   return (
     <div
       className='actions'
@@ -704,11 +900,12 @@ function Reticle({ world }) {
         display: flex;
         align-items: center;
         justify-content: center;
+        font-size: 1rem;
         .reticle-item {
-          width: 20px;
-          height: 20px;
-          border-radius: 10px;
-          border: 2px solid ${buildMode ? '#ff4d4d' : 'white'};
+          width: 1.25rem;
+          height: 1.25rem;
+          border-radius: 0.625rem;
+          border: 0.125rem solid ${buildMode ? '#ff4d4d' : 'white'};
           mix-blend-mode: ${buildMode ? 'normal' : 'difference'};
         }
       `}
@@ -734,7 +931,7 @@ function Toast({ world }) {
       className='toast'
       css={css`
         position: absolute;
-        top: calc(50% - 70px);
+        top: calc(50% - 4.375rem);
         left: 0;
         right: 0;
         display: flex;
@@ -750,16 +947,17 @@ function Toast({ world }) {
           }
         }
         .toast-msg {
-          height: 34px;
+          height: 2.875rem;
           display: flex;
           align-items: center;
           justify-content: center;
-          padding: 0 14px;
-          background: rgba(22, 22, 28, 0.4);
-          backdrop-filter: blur(3px);
-          border-radius: 25px;
+          padding: 0 1rem;
+          background: rgba(11, 10, 21, 0.85);
+          border: 0.0625rem solid #2a2b39;
+          backdrop-filter: blur(5px);
+          border-radius: 1.4375rem;
           opacity: 0;
-          transform: translateY(10px) scale(0.9);
+          transform: translateY(0.625rem) scale(0.9);
           transition: all 0.1s ease-in-out;
           &.visible {
             opacity: 1;
@@ -805,7 +1003,8 @@ function TouchBtns({ world }) {
         .touchbtns-btn {
           pointer-events: auto;
           position: absolute;
-          border: 1px solid rgba(255, 255, 255, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: rgba(0, 0, 0, 0.3);
           border-radius: 10rem;
           display: flex;
           align-items: center;

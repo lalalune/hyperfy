@@ -3,6 +3,7 @@ import {
   Menu,
   MenuItemBack,
   MenuItemBtn,
+  MenuItemCurve,
   MenuItemFile,
   MenuItemFileBtn,
   MenuItemNumber,
@@ -251,6 +252,18 @@ function MenuItemField({ world, props, field, value, modify }) {
         min={field.min}
         max={field.max}
         step={field.step}
+        value={value}
+        onChange={value => modify(field.key, value)}
+      />
+    )
+  }
+  if (field.type === 'curve') {
+    return (
+      <MenuItemCurve
+        label={field.label}
+        hint={field.hint}
+        yMin={field.yMin}
+        yMax={field.yMax}
         value={value}
         onChange={value => modify(field.key, value)}
       />

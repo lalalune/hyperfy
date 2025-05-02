@@ -1,19 +1,19 @@
-import fs from 'fs/promises';      
-import path from 'path';        
-import { fileURLToPath } from 'url'; 
+import fs from 'fs/promises';      // <-- Static import
+import path from 'path';        // <-- Static import
+import { fileURLToPath } from 'url'; // <-- Static import
 
 const isBrowser = typeof window !== 'undefined';
 
 class LocalStorage {
-  isNode = false;
   get(key, defaultValue = null) {
     try {
       const data = localStorage.getItem(key);
+      // localStorage returns null if key doesn't exist
       if (data === null) return defaultValue;
       const value = JSON.parse(data);
-      return value ?? defaultValue; 
+      return value ?? defaultValue; // Use nullish coalescing
     } catch (err) {
-      // console.error('Error reading localStorage key:', key, err); // Keep error logs?
+      console.error('Error reading localStorage key:', key, err);
       return defaultValue;
     }
   }
@@ -27,7 +27,7 @@ class LocalStorage {
         localStorage.setItem(key, data);
       }
     } catch (err) {
-      // console.error('Error writing localStorage key:', key, err); // Keep error logs?
+      console.error('Error writing localStorage key:', key, err);
     }
   }
 
@@ -35,13 +35,13 @@ class LocalStorage {
     try {
       localStorage.removeItem(key);
     } catch (err) {
-      // console.error('Error removing localStorage key:', key, err);
+      console.error('Error removing localStorage key:', key, err);
     }
   }
 }
 
 class NodeStorage {
-  isNode = true;
+  isNodeStorage = true; 
   _cache = null;
   _storageFilePath = null;
   _pendingWritePromise = Promise.resolve(); 
@@ -59,55 +59,54 @@ class NodeStorage {
         const dirname = path.dirname(fileURLToPath(import.meta.url));
         const rootDir = path.join(dirname, '../'); 
         this._storageFilePath = path.join(rootDir, 'local.json');
+        // console.log(`[NodeStorage _initializePath] Calculated storage path: ${this._storageFilePath}`); 
     } catch (err) {
        console.error("Failed to calculate NodeStorage path:", err);
        this._storageFilePath = null;
     }
   }
 
+  // Use statically imported fs
   async _readData() {
     this._initializePath(); 
     if (!this._storageFilePath) return {}; 
     if (this._cache !== null) return this._cache;
     try {
-      const data = await fs.readFile(this._storageFilePath, 'utf-8');
+      const data = await fs.readFile(this._storageFilePath, 'utf-8'); // Uses imported fs
       this._cache = JSON.parse(data);
     } catch (error) {
-      if (error.code === 'ENOENT') { this._cache = {}; }
-      else { 
-          // console.error(`[NodeStorage _readData] Error reading storage file: ${this._storageFilePath}`, error); 
-          this._cache = {}; 
-      }
+       if (error.code === 'ENOENT') { this._cache = {}; }
+       else { console.error(/*...*/); this._cache = {}; }
     }
     return this._cache;
   }
 
+  // Use statically imported fs
   async _writeData(data) {
      this._initializePath(); 
-     if (!this._storageFilePath) { 
-         // console.error("[NodeStorage _writeData] Cannot write, path not initialized.");
-         return; 
-     }
+     if (!this._storageFilePath) { /* ... */ return; }
     try {
       this._cache = data; 
       const jsonData = JSON.stringify(data, null, 2);
       this._pendingWritePromise = this._pendingWritePromise.then(async () => {
-          await fs.writeFile(this._storageFilePath, jsonData); 
+          await fs.writeFile(this._storageFilePath, jsonData); // Uses imported fs
       }).catch(error => {
-         // console.error(`[NodeStorage _writeData] Error writing storage file: ${this._storageFilePath}`, error);
+         // ... error handling ...
       });
     } catch (error) {
-      // console.error(`[NodeStorage _writeData] Error preparing write for storage file: ${this._storageFilePath}`, error);
+      // ... error handling ...
     }
   }
 
   async get(key, defaultValue = null) {
+      // Ensure path is calculated before reading
       this._initializePath(); 
       const data = await this._readData();
       return data.hasOwnProperty(key) ? data[key] : defaultValue;
   }
 
   async set(key, value) {
+      // Ensure path is calculated before reading for set logic
       this._initializePath();
       const data = await this._readData();
       let changed = false;
@@ -128,17 +127,30 @@ class NodeStorage {
   }
 
   async remove(key) {
-    await this.set(key, null); 
+    await this.set(key, null); // Use set(key, null) to handle deletion
   }
 
+  // Method to await the last pending write
   async flushWrites() {
-    // console.log("[NodeStorage flushWrites] Awaiting pending write operations...");
+    console.log("[NodeStorage flushWrites] Awaiting pending write operations...");
     await this._pendingWritePromise;
-    // console.log("[NodeStorage flushWrites] Write operations flushed.");
+    console.log("[NodeStorage flushWrites] Write operations flushed.");
   }
 }
 
-// Export logic remains the same
-export const storage = isBrowser ? new LocalStorage() : new NodeStorage();
-// No longer need to export isBrowser
-// export { isBrowser }; 
+// No longer throw error here
+// if (!isBrowser) throw new Error('storage not available on the server')
+
+// TODO: use a MemoryStorage fallback for browser environments that do not allow LocalStorage, eg safari private
+
+// Use a top-level await IIFE for async export logic
+let storageInstance;
+if (isBrowser) {
+  storageInstance = new LocalStorage();
+} else {
+  // This IIFE resolves immediately with the instance
+  storageInstance = new NodeStorage();
+}
+
+export const storage = storageInstance;
+export { isBrowser };

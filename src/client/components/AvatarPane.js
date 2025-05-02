@@ -6,12 +6,9 @@ import { usePane } from './usePane'
 import { AvatarPreview } from '../AvatarPreview'
 
 export function AvatarPane({ world, info }) {
-  const paneRef = useRef()
-  const headRef = useRef()
   const viewportRef = useRef()
   const previewRef = useRef()
   const [stats, setStats] = useState(null)
-  usePane('avatar', paneRef, headRef)
   useEffect(() => {
     const viewport = viewportRef.current
     const preview = new AvatarPreview(world, viewport)
@@ -24,26 +21,31 @@ export function AvatarPane({ world, info }) {
   }, [])
   return (
     <div
-      ref={paneRef}
       className='vpane'
       css={css`
         position: absolute;
-        top: 20px;
-        left: 20px;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
         width: 16rem;
-        background-color: rgba(15, 16, 24, 0.8);
+        height: 24rem;
+        background: rgba(11, 10, 21, 0.85);
+        border: 0.0625rem solid #2a2b39;
+        backdrop-filter: blur(5px);
+        border-radius: 1rem;
         pointer-events: auto;
         display: flex;
         flex-direction: column;
         font-size: 1rem;
+        overflow: hidden;
         .vpane-head {
           height: 3.125rem;
-          background: black;
           display: flex;
           align-items: center;
-          padding: 0 0.4375rem 0 1.25rem;
+          padding: 0 0.3rem 0 1rem;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.03);
           &-title {
-            font-size: 1.2rem;
+            font-size: 1rem;
             font-weight: 500;
             flex: 1;
           }
@@ -53,7 +55,7 @@ export function AvatarPane({ world, info }) {
             display: flex;
             align-items: center;
             justify-content: center;
-            color: rgba(255, 255, 255, 0.5);
+            color: #5d6077;
             &:hover {
               cursor: pointer;
               color: white;
@@ -62,10 +64,11 @@ export function AvatarPane({ world, info }) {
         }
         .vpane-content {
           flex: 1;
+          position: relative;
         }
         .vpane-viewport {
-          height: 300px;
-          position: relative;
+          position: absolute;
+          inset: 0;
         }
         .vpane-actions {
           position: absolute;
@@ -73,29 +76,34 @@ export function AvatarPane({ world, info }) {
           left: 0;
           right: 0;
           display: flex;
+          align-items: center;
+          gap: 0.625rem;
+          padding: 1rem;
         }
         .vpane-action {
           flex-basis: 50%;
-          height: 4.5rem;
+          height: 2.5rem;
+          background: rgba(11, 10, 21, 0.85);
+          border: 0.0625rem solid #2a2b39;
+          border-radius: 0.5rem;
+          backdrop-filter: blur(5px);
           display: flex;
           align-items: center;
           justify-content: center;
-          paint-order: stroke fill;
-          -webkit-text-stroke: 0.25rem rgba(0, 0, 0, 0.2);
+          font-size: 0.9375rem;
           &:hover {
             cursor: pointer;
-            transform: scale(1.05);
           }
         }
       `}
     >
-      <div className='vpane-head' ref={headRef}>
+      <div className='vpane-head'>
         <div className='vpane-head-title'>Avatar</div>
         <div className='vpane-head-close' onClick={() => world.emit('avatar', null)}>
           <XIcon size={20} />
         </div>
       </div>
-      <div className='vpane-content noscrollbar'>
+      <div className='vpane-content'>
         <div className='vpane-viewport' ref={viewportRef}>
           <div className='vpane-actions'>
             <div className='vpane-action' onClick={info.onEquip}>
