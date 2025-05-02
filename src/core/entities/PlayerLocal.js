@@ -713,8 +713,8 @@ export class PlayerLocal extends Entity {
     }
 
     // watch jump presses to either fly or air-jump
-    this.jumpDown = isXR ? this.control.xrRightBtn1.down : this.control.space.down || this.control.touchA.down;
-    if (isXR ? this.control.xrRightBtn1.pressed : this.control.space.pressed || this.control.touchA.pressed) {
+    this.jumpDown = isXR ? this.control.xrRightBtn1?.down : this.control.space?.down || this.control.touchA?.down;
+    if (isXR ? this.control.xrRightBtn1?.pressed : this.control.space?.pressed || this.control.touchA?.pressed) {
       this.jumpPressed = true;
     }
 
@@ -743,10 +743,10 @@ export class PlayerLocal extends Entity {
       this.moveDir.z = stickY;
     } else {
       // otherwise use keyboard
-      if (this.control.keyW.down || this.control.arrowUp.down) this.moveDir.z -= 1;
-      if (this.control.keyS.down || this.control.arrowDown.down) this.moveDir.z += 1;
-      if (this.control.keyA.down || this.control.arrowLeft.down) this.moveDir.x -= 1;
-      if (this.control.keyD.down || this.control.arrowRight.down) this.moveDir.x += 1;
+      if (this.control.keyW?.down || this.control.arrowUp?.down) this.moveDir.z -= 1;
+      if (this.control.keyS?.down || this.control.arrowDown?.down) this.moveDir.z += 1;
+      if (this.control.keyA?.down || this.control.arrowLeft?.down) this.moveDir.x -= 1;
+      if (this.control.keyD?.down || this.control.arrowRight?.down) this.moveDir.x += 1;
     }
 
     // we're moving if direction is set

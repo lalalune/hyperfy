@@ -64,7 +64,6 @@ export function createClientWorld(options = { env: 'browser' }) {
   registerSystem('physics', Physics) // Requires PhysX loaded in env
   registerSystem('stage', Stage) // Basic scene graph needed by many systems
   registerSystem('network', ClientNetwork) // Use ClientNetwork for both
-  registerSystem('prefs', ClientPrefs)
 
   // --- Register Environment-Specific Systems ---
   if (options.env !== 'node') {
@@ -72,6 +71,7 @@ export function createClientWorld(options = { env: 'browser' }) {
     registerSystem('client', Client)
     registerSystem('livekit', ClientLiveKit)
     registerSystem('pointer', ClientPointer)
+    registerSystem('prefs', ClientPrefs)
     registerSystem('controls', ClientControls)
     registerSystem('loader', ClientLoader)
     registerSystem('graphics', ClientGraphics)
@@ -91,7 +91,16 @@ export function createClientWorld(options = { env: 'browser' }) {
     // ClientPrefs is needed early by ClientAudio, ensure it's registered
     // world.register('prefs', ClientPrefs) // Already registered above? Let's move it earlier if needed
 
+  } else {
+    // Agent-only or adapted systems
+    // world.register('livekit', AgentLiveKit) // TODO: Create AgentLiveKit or omit
+    registerSystem('prefs', ClientPrefs) // Use ClientPrefs, relying on adapted storage.js
+
+    // Systems NOT needed/adapted for Agent:
+    // Client, ClientPointer, ClientLoader(mostly), ClientGraphics, ClientEnvironment,
+    // ClientAudio, ClientStats, ClientBuilder, ClientActions, ClientTarget, ClientUI,
+    // LODs, Nametags, Particles, Snaps, Wind, XR
   }
-  
+
   return world
 }

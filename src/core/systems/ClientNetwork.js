@@ -36,12 +36,10 @@ export class ClientNetwork extends System {
   }
 
   preFixedUpdate() {
-    console.log("[ClientNetwork.preFixedUpdate] Called."); 
     this.flush()
   }
 
   send(name, data) {
-    // console.log('->', name, data)
     const packet = writePacket(name, data)
     this.ws.send(packet)
   }
@@ -68,18 +66,13 @@ export class ClientNetwork extends System {
   }
 
   enqueue(method, data) {
-    console.log(`[ClientNetwork enqueue] Queuing method: ${method}`);
     this.queue.push([method, data])
   }
 
   flush() {
-    if (this.queue.length > 0) {
-        console.log(`[ClientNetwork flush] Flushing queue, size: ${this.queue.length}`);
-    }
     while (this.queue.length) {
       try {
         const [method, data] = this.queue.shift()
-        console.log(`[ClientNetwork flush] Executing method: ${method}`);
         this[method]?.(data)
       } catch (err) {
         console.error(`[ClientNetwork flush] Error executing method: ${err}`);
@@ -92,20 +85,11 @@ export class ClientNetwork extends System {
   }
 
   onPacket = e => {
-    // --> Log raw message details <--
-    console.log(`[ClientNetwork onPacket] Raw message received. Type: ${typeof e.data}, Size: ${e.data?.byteLength || e.data?.length || 'N/A'}`);
-    
     const [method, data] = readPacket(e.data);
-    if (method) { 
-      console.log(`[ClientNetwork onPacket] Decoded packet method: ${method}`); 
-    } else {
-      console.error(`[ClientNetwork onPacket] Failed to decode packet.`);
-    }
     this.enqueue(method, data);
   }
 
   onSnapshot(data) {
-    console.log("[ClientNetwork onSnapshot] Method called.");
     this.id = data.id;
     this.serverTimeOffset = data.serverTime - performance.now();
     this.apiUrl = data.apiUrl;
@@ -123,17 +107,14 @@ export class ClientNetwork extends System {
     this.world.entities?.deserialize(data.entities);
     this.world.livekit?.deserialize(data.livekit);
     
-    console.log(`[ClientNetwork onSnapshot] Received authToken: ${data.authToken}`); 
     try {
         storage.set('authToken', data.authToken); 
-        console.log(`[ClientNetwork onSnapshot] Called storage.set with token.`); 
     } catch (e) {
         console.error("[ClientNetwork onSnapshot] Error calling storage.set:", e); 
     }
 
     // --> Restore preload logic, guarded for client environment <--
     if (this.world.loader) {
-        console.log("[ClientNetwork onSnapshot] Running preload logic for client...");
         // preload environment model and avatar
         if (data.settings.model) {
           this.world.loader.preload('model', data.settings.model.url);
@@ -176,7 +157,6 @@ export class ClientNetwork extends System {
         this.world.loader.execPreload(); 
     } else {
         // Manually emit ready for agent if no loader (restoring previous agent fix)
-        console.log("[ClientNetwork onSnapshot] Loader not found, emitting 'ready' event for agent.");
         this.world.emit('ready', true);
     }
     if (data.settings.avatar) {
@@ -187,36 +167,36 @@ export class ClientNetwork extends System {
       if (item.preload) {
         if (item.model) {
           const type = item.model.endsWith('.vrm') ? 'avatar' : 'model'
-          this.world.loader.preload(type, item.model)
+          this.world.loader?.preload(type, item.model)
         }
         if (item.script) {
-          this.world.loader.preload('script', item.script)
+          this.world.loader?.preload('script', item.script)
         }
         for (const value of Object.values(item.props || {})) {
           if (value === undefined || value === null || !value?.url || !value?.type) continue
-          this.world.loader.preload(value.type, value.url)
+          this.world.loader?.preload(value.type, value.url)
         }
       }
     }
     // preload emotes
     for (const url of emoteUrls) {
-      this.world.loader.preload('emote', url)
+      this.world.loader?.preload('emote', url)
     }
     // preload local player avatar
     for (const item of data.entities) {
       if (item.type === 'player' && item.owner === this.id) {
         const url = item.sessionAvatar || item.avatar
-        this.world.loader.preload('avatar', url)
+        this.world.loader?.preload('avatar', url)
       }
     }
-    this.world.loader.execPreload()
+    this.world.loader?.execPreload()
 
-    this.world.collections.deserialize(data.collections)
-    this.world.settings.deserialize(data.settings)
-    this.world.chat.deserialize(data.chat)
-    this.world.blueprints.deserialize(data.blueprints)
-    this.world.entities.deserialize(data.entities)
-    this.world.livekit.deserialize(data.livekit)
+    this.world.collections?.deserialize(data.collections)
+    this.world.settings?.deserialize(data.settings)
+    this.world.chat?.deserialize(data.chat)
+    this.world.blueprints?.deserialize(data.blueprints)
+    this.world.entities?.deserialize(data.entities)
+    this.world.livekit?.deserialize(data.livekit)
     storage.set('authToken', data.authToken)
   }
 
@@ -292,3 +272,4 @@ export class ClientNetwork extends System {
     console.log('disconnect', code)
   }
 }
+
