@@ -11,7 +11,7 @@ import { Blueprints } from './systems/Blueprints'
 import { Entities } from './systems/Entities'
 import { Physics } from './systems/Physics'
 import { Stage } from './systems/Stage'
-import { ClientNetwork } from './systems/ClientNetwork' // Network needed by both
+import { ClientNetwork } from './systems/ClientNetwork'
 
 // Client-Specific Systems
 import { Client } from './systems/Client'
@@ -19,7 +19,6 @@ import { ClientLiveKit } from './systems/ClientLiveKit'
 import { ClientPointer } from './systems/ClientPointer'
 import { ClientPrefs } from './systems/ClientPrefs'
 import { ClientControls } from './systems/ClientControls'
-// import { ClientNetwork } from './systems/ClientNetwork' // Moved up
 import { ClientLoader } from './systems/ClientLoader'
 import { ClientGraphics } from './systems/ClientGraphics'
 import { ClientEnvironment } from './systems/ClientEnvironment'
@@ -36,16 +35,13 @@ import { Snaps } from './systems/Snaps'
 import { Wind } from './systems/Wind'
 import { XR } from './systems/XR'
 
-// Agent-Specific Systems
-import { AgentControls, controlProxyHandler } from './systems/AgentControls.js'
-
 /**
  * Creates a World instance tailored for the specified environment.
  * 
- * @param {{ env: 'client' | 'agent' }} options - Configuration options.
+ * @param {{ env: 'browser' | 'node' }} options - Configuration options.
  * @returns {World}
  */
-export function createClientWorld(options = { env: 'client' }) {
+export function createClientWorld(options = { env: 'browser' }) {
   const world = new World()
 
   // Define registration logic reusable for systems
@@ -68,14 +64,14 @@ export function createClientWorld(options = { env: 'client' }) {
   registerSystem('physics', Physics) // Requires PhysX loaded in env
   registerSystem('stage', Stage) // Basic scene graph needed by many systems
   registerSystem('network', ClientNetwork) // Use ClientNetwork for both
+  registerSystem('prefs', ClientPrefs)
 
   // --- Register Environment-Specific Systems ---
-  if (options.env === 'client') {
+  if (options.env !== 'node') {
     // Client-only systems
     registerSystem('client', Client)
     registerSystem('livekit', ClientLiveKit)
     registerSystem('pointer', ClientPointer)
-    registerSystem('prefs', ClientPrefs)
     registerSystem('controls', ClientControls)
     registerSystem('loader', ClientLoader)
     registerSystem('graphics', ClientGraphics)
@@ -95,19 +91,7 @@ export function createClientWorld(options = { env: 'client' }) {
     // ClientPrefs is needed early by ClientAudio, ensure it's registered
     // world.register('prefs', ClientPrefs) // Already registered above? Let's move it earlier if needed
 
-  } else if (options.env === 'agent') {
-    // Agent-only or adapted systems
-    registerSystem('controls', AgentControls, controlProxyHandler)
-    // world.register('livekit', AgentLiveKit) // TODO: Create AgentLiveKit or omit
-    registerSystem('prefs', ClientPrefs) // Use ClientPrefs, relying on adapted storage.js
-
-    // Systems NOT needed/adapted for Agent:
-    // Client, ClientPointer, ClientLoader(mostly), ClientGraphics, ClientEnvironment,
-    // ClientAudio, ClientStats, ClientBuilder, ClientActions, ClientTarget, ClientUI,
-    // LODs, Nametags, Particles, Snaps, Wind, XR
-  } else {
-    throw new Error(`Unknown environment for createClientWorld: ${options.env}`);
   }
-
+  
   return world
 }

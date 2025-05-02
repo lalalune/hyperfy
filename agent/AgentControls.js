@@ -1,5 +1,4 @@
-import { System } from './System';
-import { buttons, codeToProp } from '../extras/buttons';
+import { System } from '../build/core.js';
 
 /**
  * Agent Controls System
@@ -44,6 +43,7 @@ export class AgentControls extends System {
 
   // Method for the agent script to set a key state
   setKey(keyName, isDown) {
+    console.log("[AgentControls setKey] Setting key:", keyName, isDown);
     if (!this._buttonStates[keyName]) {
       // console.warn(`AgentControls: Key "${keyName}" not pre-defined, creating dynamically.`);
       this._buttonStates[keyName] = createButtonState();
@@ -62,13 +62,10 @@ export class AgentControls extends System {
 
   // Method for systems (like PlayerLocal) to get a key state object
   getKey(keyName) {
-    console.log(`[AgentControls getKey] Getting state for key: "${keyName}"`); 
     if (!this._buttonStates[keyName]) {
-        console.log(`[AgentControls getKey] Key "${keyName}" not found, creating default.`);
         this._buttonStates[keyName] = createButtonState();
     }
     const state = this._buttonStates[keyName];
-    console.log(`[AgentControls getKey] Returning state for "${keyName}":`, state);
     return state;
   }
   
@@ -102,7 +99,6 @@ export class AgentControls extends System {
   get pointer() { return undefined; }
   get screen() { return undefined; }
   get scrollDelta() { 
-      console.log("[AgentControls] get scrollDelta called.");
       return { value: 0 }; 
   }
   // ... add other dummy properties if required by PlayerLocal or other systems ...

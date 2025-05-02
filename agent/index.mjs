@@ -3,6 +3,8 @@ import 'ses';
 import { performance } from 'perf_hooks'; // Node.js performance hooks
 import * as THREE from 'three'; // <-- Add THREE import
 
+import { AgentControls } from './AgentControls.js';
+
 // --- Configuration ---
 const WS_URL = process.env.WS_URL || 'ws://localhost:3000/ws';
 const TICK_RATE = 50; // Hz (how often world.tick runs)
@@ -40,8 +42,18 @@ async function runAgent() {
   const initialAuthToken = await storage.get('authToken');
   console.log(`Retrieved initialAuthToken: ${initialAuthToken}`);
 
-  // Specify 'agent' environment to load only necessary core systems
-  world = createClientWorld({ env: 'agent' });
+
+  function registerSystem(key, SystemClass, proxyHandler = null) {
+    const system = new SystemClass(world)
+    world[key] = proxyHandler ? new Proxy(system, proxyHandler) : system
+    world.systems.push(system) // Push the original system for the update loop
+    return system
+  }
+
+  // Specify 'node' environment to load only necessary core systems
+  world = createClientWorld({ env: 'node' });
+
+  registerSystem('controls', AgentControls)
 
   // Mock viewport/UI elements needed by some client systems
   const mockElement = {

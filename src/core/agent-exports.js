@@ -3,3 +3,4 @@ export { createClientWorld } from './createClientWorld.js';
 export { loadNodePhysX } from './loadNodePhysX.js'; 
 export { uuid } from './utils.js'; 
 export { storage } from './storage.js'; 
+export { System } from './systems/System.js';
